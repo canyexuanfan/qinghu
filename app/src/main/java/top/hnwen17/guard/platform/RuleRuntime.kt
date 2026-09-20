@@ -371,7 +371,19 @@ class RuleRuntime(
                     m.text?.takeIf { it.isNotBlank() } ?: m.desc?.takeIf { it.isNotBlank() }
                         ?: m.viewId?.substringAfterLast('/')
                 }
-                schedulePostcondition(event.session, rule, rootProvider, ledger, marker, retryCount)
+                // QH-P20 内容指纹：点击前记录窗口前几个文本节点，用于点击后比对是否真的变化
+                val preFingerprint = live.rootSnapshot.let { root ->
+                    buildList {
+                        fun collect(n: top.hnwen17.guard.core.rules.SnapshotNode) {
+                            if (size >= 5) return
+                            n.text?.takeIf { it.isNotBlank() }?.let { add(it) }
+                            if (size >= 5) return
+                            n.children.forEach { collect(it) }
+                        }
+                        collect(root)
+                    }.joinToString("|")
+                }
+                schedulePostcondition(event.session, rule, rootProvider, ledger, marker, retryCount, preFingerprint)
                 return done
             }
             return null
@@ -489,7 +501,8 @@ class RuleRuntime(
         rootProvider: () -> AccessibilityNodeInfo?,
         ledger: RuleSessionState,
         marker: String? = null,
-        retryCount: Int = 0
+        retryCount: Int = 0,
+        preFingerprint: String = ""
     ) {
         val scope = postScope ?: return
         val timeout = rule.postcondition?.timeoutMs?.takeIf { it > 0 } ?: 800L
@@ -500,11 +513,29 @@ class RuleRuntime(
             val absent = rule.postcondition?.absentViewId?.let { vid ->
                 NodeSnapshotReader.containsViewId(root, vid)?.let { !it }
             } ?: run {
-                // QH-P18 通用后验：无显式 postcondition → 用命中标记判「广告是否真关闭」。
-                // null（窗口不可用）视为已关闭（窗口销毁是最强的关闭证据）。
-                marker?.let { mk ->
-                    NodeSnapshotReader.containsMarker(root, mk)?.let { !it }
-                }
+                // QH-P20 内容指纹后验：比较点击前后窗口内容指纹是否变化。
+                // 指纹变了 → 窗口内容确实变了（广告被关掉或替换）→ VERIFIED
+                // 指纹没变 → 点击无效 → FAILED
+                // null（窗口不可用）保持 EXECUTED 不冒充
+                if (preFingerprint.isNotBlank() && root != null) {
+                    val live = NodeSnapshotReader.snapshotLive(root)
+                    if (live != null) {
+                        try {
+                            val postFp = live.rootSnapshot.let { r ->
+                                buildList {
+                                    fun collect(n: top.hnwen17.guard.core.rules.SnapshotNode) {
+                                        if (size >= 5) return
+                                        n.text?.takeIf { it.isNotBlank() }?.let { add(it) }
+                                        if (size >= 5) return
+                                        n.children.forEach { collect(it) }
+                                    }
+                                    collect(r)
+                                }.joinToString("|")
+                            }
+                            preFingerprint != postFp
+                        } finally { live.recycleAll() }
+                    } else null
+                } else null
             }
             when {
                 absent == null -> logAction("POST ${rule.id}: window gone, keep EXECUTED")
