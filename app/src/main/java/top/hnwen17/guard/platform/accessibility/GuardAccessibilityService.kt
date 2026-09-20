@@ -216,6 +216,18 @@ class GuardAccessibilityService : AccessibilityService() {
             classNameHint = e.className?.toString().orEmpty().take(GuardEvent.MAX_SUMMARY)
         )
         if (e.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            // QH-P20 事件时捕获：窗口状态变更到达时立即记录（不等待异步处理），
+            // 确保每个广告窗口都有痕迹——解决「有广告但零记录」的用户反馈
+            val cls = e.className?.toString()?.lowercase().orEmpty()
+            if (top.hnwen17.guard.core.rules.AdWindowHeuristics.AD_ACTIVITY_TOKENS.any { cls.contains(it) }) {
+                (applicationContext as? top.hnwen17.guard.GuardApplication)?.observeStore?.observe(
+                    packageName = source,
+                    className = e.className?.toString() ?: "",
+                    reason = "event_detected",
+                    atEpochMs = java.lang.System.currentTimeMillis(),
+                    samples = listOf(e.className?.toString() ?: "")
+                )
+            }
             // QH-P12：前台切换 → 跳转判定（BACK 拦截或放行），再喂规则引擎
             // MuMu 系统窗口（com.unian.* / com.mumu.*）不参与前台跟踪（会打断驻留计时）
             val isSystemWindow = source.startsWith("com.unian") || source.startsWith("com.mumu")
