@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/bg_page" android:paddingHorizontal="@dimen/page_gutter">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="@dimen/toolbar_height" android:gravity="center_vertical" android:orientation="horizontal">
+        <ImageView android:layout_width="54dp" android:layout_height="45dp" android:src="@drawable/brand_symbol" android:scaleType="fitCenter" android:contentDescription="轻护标志"/>
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginStart="4dp">
+            <TextView style="@style/Text.Body" android:text="规则订阅" android:textSize="17sp"/>
+            <TextView style="@style/Text.Sub" android:text="内置规则 + 社区订阅（默认仅观察）" android:textSize="11sp"/>
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingHorizontal="12dp" android:paddingVertical="10dp" android:layout_marginBottom="10dp">
+        <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@drawable/ic_records" android:importantForAccessibility="no"/>
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginStart="12dp">
+            <TextView style="@style/Text.Body" android:text="轻护内置规则集"/>
+            <TextView style="@style/Text.Sub" android:text="自有原创 + 用户观察 · 随 APK 分发" android:textSize="12sp" android:layout_marginTop="3dp"/>
+        </LinearLayout>
+        <Switch android:id="@+id/builtinSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="内置规则集开关"/>
+    </LinearLayout>
+    <LinearLayout style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingHorizontal="12dp" android:paddingVertical="10dp" android:layout_marginBottom="10dp">
+        <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@drawable/ic_globe" android:importantForAccessibility="no"/>
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginStart="12dp">
+            <TextView style="@style/Text.Body" android:text="外置规则集（社区订阅）"/>
+            <TextView style="@style/Text.Sub" android:text="GitHub 等外部来源的规则包" android:textSize="12sp" android:layout_marginTop="3dp"/>
+        </LinearLayout>
+        <Switch android:id="@+id/externalSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="外置规则集开关"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
+        <TextView style="@style/Text.Body" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="我的订阅（社区订阅在下方开关控制）"/>
+        <TextView android:id="@+id/empty" style="@style/Text.Sub" android:text="暂无订阅" android:visibility="gone"/>
+    </LinearLayout>
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:scrollbars="none">
+        <LinearLayout android:id="@+id/subList" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingBottom="12dp"/>
+    </ScrollView>
+    <TextView android:id="@+id/addBtn" android:layout_width="match_parent" android:layout_height="52dp" android:gravity="center" android:text="添加订阅（粘贴 https 链接）" android:textColor="@color/white" android:textSize="16sp" android:background="@drawable/bg_selected_blue" android:layout_marginVertical="10dp" android:clickable="true" android:focusable="true"/>
+</LinearLayout>

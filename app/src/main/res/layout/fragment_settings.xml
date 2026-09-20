@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/bg_page" android:paddingHorizontal="@dimen/page_gutter">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="@dimen/toolbar_height" android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/pageTitle" style="@style/Text.Title" android:layout_width="0dp" android:layout_weight="1" android:text="设置"/>
+        <ImageButton android:id="@+id/toolbarAction" style="@style/IconButton" android:src="@drawable/ic_filter" android:contentDescription="更多选项" android:visibility="gone"/>
+    </LinearLayout>
+    <androidx.core.widget.NestedScrollView android:id="@+id/scroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:clipToPadding="false" android:scrollbars="none" android:paddingBottom="16dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+            <LinearLayout android:id="@+id/brandCard" style="@style/Card" android:minHeight="112dp" android:orientation="horizontal" android:gravity="center" android:clickable="true" android:focusable="true" android:foreground="?attr/selectableItemBackground">
+                <ImageView android:id="@+id/brandIcon" android:layout_width="91dp" android:layout_height="77dp" android:src="@drawable/brand_symbol" android:scaleType="fitCenter" android:contentDescription="轻护标志"/>
+                <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="7dp" android:orientation="vertical">
+                    <ImageView android:id="@+id/brandWordmark" android:layout_width="72dp" android:layout_height="35dp" android:src="@drawable/brand_wordmark" android:scaleType="fitCenter" android:contentDescription="轻护"/>
+                    <TextView style="@style/Text.Sub" android:text="远离广告干扰 · 守护纯净体验" android:textSize="10sp" android:layout_marginTop="3dp"/>
+                    <TextView android:id="@+id/brandVersion" style="@style/Text.Sub" android:text="版本 0.2.0" android:textSize="12sp" android:layout_marginTop="5dp"/>
+                </LinearLayout>
+            </LinearLayout>
+            <TextView style="@style/Text.Section" android:text="保护服务" android:layout_marginTop="20dp" android:layout_marginBottom="10dp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card" android:clipToOutline="true">
+                <include android:id="@+id/baseService" layout="@layout/item_setting" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+                <View android:layout_width="match_parent" android:layout_height="0.5dp" android:layout_marginStart="64dp" android:layout_marginEnd="14dp" android:background="@color/line"/>
+                <include android:id="@+id/accessibility" layout="@layout/item_setting" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+            </LinearLayout>
+            <TextView style="@style/Text.Section" android:text="增强保护" android:layout_marginTop="22dp" android:layout_marginBottom="10dp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card" android:clipToOutline="true">
+                <include android:id="@+id/enhancement" layout="@layout/item_setting" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+                <View android:layout_width="match_parent" android:layout_height="0.5dp" android:layout_marginStart="64dp" android:layout_marginEnd="14dp" android:background="@color/line"/>
+                <include android:id="@+id/shizuku" layout="@layout/item_setting" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+            </LinearLayout>
+            <TextView style="@style/Text.Section" android:text="规则" android:layout_marginTop="22dp" android:layout_marginBottom="10dp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card" android:clipToOutline="true">
+                <include android:id="@+id/autoUpdate" layout="@layout/item_setting_switch" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+                <View android:layout_width="match_parent" android:layout_height="0.5dp" android:layout_marginStart="64dp" android:layout_marginEnd="14dp" android:background="@color/line"/>
+                <include android:id="@+id/ruleVersion" layout="@layout/item_setting" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+            </LinearLayout>
+            <TextView style="@style/Text.Section" android:text="隐私" android:layout_marginTop="22dp" android:layout_marginBottom="10dp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card" android:clipToOutline="true">
+                <include android:id="@+id/localOnly" layout="@layout/item_setting" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+            </LinearLayout>
+            <TextView style="@style/Text.Section" android:text="高级设置" android:layout_marginTop="22dp" android:layout_marginBottom="10dp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card" android:clipToOutline="true">
+                <include android:id="@+id/networkFilter" layout="@layout/item_setting" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+                <View android:layout_width="match_parent" android:layout_height="0.5dp" android:layout_marginStart="64dp" android:layout_marginEnd="14dp" android:background="@color/line"/>
+                <include android:id="@+id/compatibility" layout="@layout/item_setting" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+                <View android:layout_width="match_parent" android:layout_height="0.5dp" android:layout_marginStart="64dp" android:layout_marginEnd="14dp" android:background="@color/line"/>
+                <include android:id="@+id/diagnostics" layout="@layout/item_setting" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+                <View android:layout_width="match_parent" android:layout_height="0.5dp" android:layout_marginStart="64dp" android:layout_marginEnd="14dp" android:background="@color/line"/>
+                <include android:id="@+id/lab" layout="@layout/item_setting" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+                <View android:layout_width="match_parent" android:layout_height="0.5dp" android:layout_marginStart="64dp" android:layout_marginEnd="14dp" android:background="@color/line"/>
+                <include android:id="@+id/reduceMotion" layout="@layout/item_setting_switch" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+            </LinearLayout>
+            <TextView style="@style/Text.Section" android:text="关于" android:layout_marginTop="22dp" android:layout_marginBottom="10dp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card" android:clipToOutline="true">
+                <include android:id="@+id/about" layout="@layout/item_setting" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+                <View android:layout_width="match_parent" android:layout_height="0.5dp" android:layout_marginStart="64dp" android:layout_marginEnd="14dp" android:background="@color/line"/>
+                <include android:id="@+id/dataManagement" layout="@layout/item_setting" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+            </LinearLayout>
+            <TextView android:id="@+id/buildNotice" style="@style/Text.Sub" android:layout_width="match_parent" android:layout_marginTop="20dp" android:padding="12dp" android:background="@drawable/bg_mint" android:text="@string/integration_banner" android:textSize="12sp"/>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

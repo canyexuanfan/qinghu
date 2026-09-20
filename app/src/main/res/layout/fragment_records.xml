@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/bg_page" android:paddingHorizontal="@dimen/page_gutter">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="@dimen/toolbar_height" android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/pageTitle" style="@style/Text.Title" android:layout_width="0dp" android:layout_weight="1" android:text="保护记录"/>
+        <ImageButton android:id="@+id/toolbarAction" style="@style/IconButton" android:src="@drawable/ic_filter" android:contentDescription="更多选项" android:visibility="visible"/>
+    </LinearLayout>
+    <HorizontalScrollView android:layout_width="match_parent" android:layout_height="48dp" android:scrollbars="none" android:layout_marginTop="4dp" android:layout_marginBottom="6dp">
+        <LinearLayout android:id="@+id/chipGroup" android:layout_width="wrap_content" android:layout_height="match_parent" android:gravity="center_vertical" android:orientation="horizontal">
+            <TextView android:id="@+id/chipAll" style="@style/Text.Pill" android:text="全部" android:layout_height="40dp" android:gravity="center" android:paddingHorizontal="13dp" android:background="@drawable/bg_gray" android:textColor="@color/sub" android:layout_marginEnd="6dp" android:clickable="true" android:focusable="true"/>
+            <TextView android:id="@+id/chipCleaner" style="@style/Text.Pill" android:text="广告净化" android:layout_height="40dp" android:gravity="center" android:paddingHorizontal="13dp" android:background="@drawable/bg_gray" android:textColor="@color/sub" android:layout_marginEnd="6dp" android:clickable="true" android:focusable="true"/>
+            <TextView android:id="@+id/chipTouch" style="@style/Text.Pill" android:text="防误触" android:layout_height="40dp" android:gravity="center" android:paddingHorizontal="13dp" android:background="@drawable/bg_gray" android:textColor="@color/sub" android:layout_marginEnd="6dp" android:clickable="true" android:focusable="true"/>
+            <TextView android:id="@+id/chipSensor" style="@style/Text.Pill" android:text="防摇一摇" android:layout_height="40dp" android:gravity="center" android:paddingHorizontal="13dp" android:background="@drawable/bg_gray" android:textColor="@color/sub" android:layout_marginEnd="6dp" android:clickable="true" android:focusable="true"/>
+            <TextView android:id="@+id/chipJump" style="@style/Text.Pill" android:text="跳转" android:layout_height="40dp" android:gravity="center" android:paddingHorizontal="13dp" android:background="@drawable/bg_gray" android:textColor="@color/sub" android:layout_marginEnd="6dp" android:clickable="true" android:focusable="true"/>
+        </LinearLayout>
+    </HorizontalScrollView>
+    <TextView android:id="@+id/filterLabel" style="@style/Text.Sub" android:text="" android:visibility="gone" android:layout_marginBottom="10dp"/>
+    <TextView android:id="@+id/empty" style="@style/Text.Sub" android:text="暂无保护记录" android:layout_gravity="center_horizontal" android:layout_marginVertical="36dp" android:visibility="gone"/>
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/list" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:clipToPadding="false" android:paddingBottom="12dp" android:scrollbars="none" tools:listitem="@layout/item_record" tools:itemCount="7"/>
+</LinearLayout>

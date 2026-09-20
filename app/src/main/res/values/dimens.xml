@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="page_gutter">16dp</dimen>
+    <dimen name="toolbar_height">62dp</dimen>
+    <dimen name="card_radius">18dp</dimen>
+    <dimen name="card_gap">8dp</dimen>
+    <dimen name="app_row_height">68dp</dimen>
+    <dimen name="capability_row_height">88dp</dimen>
+    <dimen name="nav_height">64dp</dimen>
+    <dimen name="minimum_touch">48dp</dimen>
+</resources>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ink">#0A2054</color>
+    <color name="sub">#6980A5</color>
+    <color name="muted">#8193B0</color>
+    <color name="green">#00C58C</color>
+    <color name="green_dark">#00AC76</color>
+    <color name="mint">#E1FBF0</color>
+    <color name="blue">#128FFF</color>
+    <color name="blue_soft">#E7F3FF</color>
+    <color name="nav_active">#0753C8</color>
+    <color name="purple">#6A5CFA</color>
+    <color name="purple_soft">#EFECFF</color>
+    <color name="orange">#FF870D</color>
+    <color name="orange_soft">#FFF0DD</color>
+    <color name="page">#F7FBFD</color>
+    <color name="line">#EDF3F8</color>
+    <color name="white">#FFFFFF</color>
+    <color name="gray_soft">#F0F4F8</color>
+    <color name="launcher_bg">#F3FFFC</color>
+</resources>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/bg_page" android:paddingHorizontal="@dimen/page_gutter">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="@dimen/toolbar_height" android:gravity="center_vertical" android:orientation="horizontal">
+        <ImageView android:id="@+id/brandIcon" android:layout_width="54dp" android:layout_height="45dp" android:src="@drawable/brand_symbol" android:scaleType="fitCenter" android:contentDescription="轻护标志"/>
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginStart="4dp">
+            <ImageView android:id="@+id/brandWordmark" android:layout_width="62dp" android:layout_height="31dp" android:src="@drawable/brand_wordmark" android:scaleType="fitCenter" android:contentDescription="轻护"/>
+        </LinearLayout>
+        <ImageButton android:id="@+id/toolbarAction" style="@style/IconButton" android:src="@drawable/ic_search" android:contentDescription="搜索应用"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="40dp" android:orientation="horizontal" android:padding="2dp" android:background="@drawable/bg_search" android:layout_marginBottom="10dp">
+        <TextView android:id="@+id/userApps" style="@style/Text.Body" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:text="应用保护" android:gravity="center" android:background="@drawable/bg_segment_selected" android:clickable="true" android:focusable="true"/>
+        <TextView android:id="@+id/systemApps" style="@style/Text.Sub" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:text="系统应用" android:gravity="center" android:clickable="true" android:focusable="true"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="44dp" android:gravity="center_vertical" android:paddingHorizontal="14dp" android:background="@drawable/bg_search" android:layout_marginBottom="4dp">
+        <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_search" app:tint="@color/sub" android:importantForAccessibility="no"/>
+        <EditText android:id="@+id/search" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:background="@null" android:paddingStart="10dp" android:paddingEnd="4dp" android:hint="@string/search_apps" android:textColor="@color/ink" android:textColorHint="@color/sub" android:textSize="15sp" android:inputType="text" android:singleLine="true" android:imeOptions="actionSearch" android:importantForAutofill="no"/>
+    </LinearLayout>
+    <TextView android:id="@+id/empty" style="@style/Text.Sub" android:text="没有找到应用" android:gravity="center" android:layout_width="match_parent" android:layout_marginVertical="20dp" android:visibility="gone"/>
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/list" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:clipToPadding="false" android:paddingBottom="12dp" android:scrollbars="none" tools:listitem="@layout/item_app" tools:itemCount="7"/>
+</LinearLayout>

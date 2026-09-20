@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "qinghu.fixture.probe",
+  "version": 1,
+  "provenance": {"author": "Qinghu", "license": "PROJECT-OWNED", "source": "self-authored-test-fixture"},
+  "rules": [
+    {
+      "id": "fixture.splash.close",
+      "version": 1,
+      "provenance": {"author": "Qinghu", "license": "PROJECT-OWNED", "source": "self-authored-test-fixture"},
+      "target": {"package": "top.hnwen17.guard.probe.a", "minVersionCode": 1, "maxVersionCode": 1},
+      "page": {"requiredViewIds": ["ad_container"], "mustNotHave": ["sensitive_payment"]},
+      "match": {"viewId": "skip_button", "clickable": true, "parentViewId": "ad_container"},
+      "action": {"type": "CLICK_VERIFIED_NODE", "maxAttempts": 2, "cooldownMs": 1500},
+      "postcondition": {"absentViewId": "ad_container", "timeoutMs": 1000}
+    },
+    {
+      "id": "fixture.splash.observe_only",
+      "version": 1,
+      "provenance": {"author": "Qinghu", "license": "PROJECT-OWNED", "source": "self-authored-test-fixture"},
+      "target": {"package": "top.hnwen17.guard.probe.a", "minVersionCode": 1, "maxVersionCode": 1},
+      "match": {"viewId": "countdown_text"},
+      "action": {"type": "RECORD_ONLY", "maxAttempts": 1, "cooldownMs": 0}
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/bg_page" android:paddingHorizontal="@dimen/page_gutter">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="@dimen/toolbar_height" android:gravity="center_vertical" android:orientation="horizontal">
+        <ImageView android:id="@+id/brandIcon" android:layout_width="54dp" android:layout_height="45dp" android:src="@drawable/brand_symbol" android:scaleType="fitCenter" android:contentDescription="轻护标志"/>
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginStart="4dp">
+            <ImageView android:id="@+id/brandWordmark" android:layout_width="62dp" android:layout_height="31dp" android:src="@drawable/brand_wordmark" android:scaleType="fitCenter" android:contentDescription="轻护"/>
+            <TextView android:id="@+id/brandTagline" style="@style/Text.Sub" android:text="远离广告干扰 · 守护纯净体验" android:textSize="10sp" android:maxLines="1" android:ellipsize="end"/>
+        </LinearLayout>
+        <ImageButton android:id="@+id/toolbarAction" style="@style/IconButton" android:src="@drawable/ic_settings" android:contentDescription="设置"/>
+    </LinearLayout>
+    <androidx.core.widget.NestedScrollView android:id="@+id/scroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:clipToPadding="false" android:scrollbars="none" android:paddingBottom="16dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center_horizontal" android:paddingTop="4dp" android:paddingBottom="16dp">
+                <top.hnwen17.guard.ui.ShieldView android:id="@+id/shield" android:layout_width="match_parent" android:layout_height="190dp" android:src="@drawable/brand_hero" android:scaleType="fitCenter" android:clickable="true" android:focusable="true" android:contentDescription="轻护，暂停或恢复保护策略"/>
+                <TextView android:id="@+id/heroTitle" style="@style/Text.Title" android:text="待启用" android:textSize="34sp" android:layout_marginTop="5dp" tools:text="防护中"/>
+                <TextView android:id="@+id/heroSubtitle" style="@style/Text.Sub" android:text="实际防护能力尚未接入" android:textSize="16sp" android:layout_marginTop="8dp" tools:text="4 项保护能力正在运行"/>
+                <TextView android:id="@+id/todayPill" style="@style/Text.Pill" android:text="今日已保护 0 次  ›" android:textSize="16sp" android:paddingHorizontal="26dp" android:paddingVertical="10dp" android:layout_marginTop="16dp" android:clickable="true" android:focusable="true" tools:text="今日已保护 27 次  ›"/>
+            </LinearLayout>
+            <LinearLayout style="@style/Card" android:orientation="horizontal" android:paddingHorizontal="4dp" android:paddingVertical="18dp">
+                <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                    <TextView android:id="@+id/cleanCount" style="@style/Text.Title" android:text="0" android:textSize="29sp" android:textColor="@color/green" tools:text="12"/>
+                    <TextView style="@style/Text.Sub" android:text="广告处理" android:textSize="12sp" android:layout_marginTop="7dp"/>
+                </LinearLayout>
+                <View android:layout_width="0.5dp" android:layout_height="48dp" android:layout_gravity="center_vertical" android:background="@color/line"/>
+                <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                    <TextView android:id="@+id/touchCount" style="@style/Text.Title" android:text="0" android:textSize="29sp" android:textColor="@color/blue" tools:text="7"/>
+                    <TextView style="@style/Text.Sub" android:text="防止误触" android:textSize="12sp" android:layout_marginTop="7dp"/>
+                </LinearLayout>
+                <View android:layout_width="0.5dp" android:layout_height="48dp" android:layout_gravity="center_vertical" android:background="@color/line"/>
+                <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                    <TextView android:id="@+id/otherCount" style="@style/Text.Title" android:text="0" android:textSize="29sp" android:textColor="@color/orange" tools:text="8"/>
+                    <TextView style="@style/Text.Sub" android:text="阻止异常行为" android:textSize="12sp" android:layout_marginTop="7dp"/>
+                </LinearLayout>
+            </LinearLayout>
+            <TextView style="@style/Text.Section" android:text="保护能力" android:layout_marginTop="18dp" android:layout_marginBottom="10dp"/>
+            <include android:id="@+id/cleaner" layout="@layout/item_capability" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp"/>
+            <include android:id="@+id/touch" layout="@layout/item_capability" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp"/>
+            <include android:id="@+id/sensor" layout="@layout/item_capability" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp"/>
+            <include android:id="@+id/jump" layout="@layout/item_capability" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical" android:layout_marginTop="4dp">
+                <TextView style="@style/Text.Section" android:text="最近保护" android:layout_width="0dp" android:layout_weight="1"/>
+                <TextView android:id="@+id/allRecords" style="@style/Text.Sub" android:text="查看更多  ›" android:minHeight="48dp" android:gravity="center" android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground"/>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/recentList" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"/>
+            <TextView android:id="@+id/recentEmpty" style="@style/Text.Sub" android:text="暂无记录。真实执行结果将在这里展示。" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

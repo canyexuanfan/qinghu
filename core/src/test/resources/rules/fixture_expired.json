@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "qinghu.fixture.probe.expired",
+  "version": 1,
+  "provenance": {"author": "Qinghu", "license": "PROJECT-OWNED", "source": "self-authored-test-fixture"},
+  "rules": [
+    {
+      "id": "fixture.expired.rule",
+      "version": 1,
+      "expiresAtEpochMs": 1,
+      "provenance": {"author": "Qinghu", "license": "PROJECT-OWNED", "source": "self-authored-test-fixture"},
+      "target": {"package": "top.hnwen17.guard.probe.a", "minVersionCode": 1, "maxVersionCode": 1},
+      "match": {"viewId": "skip_button", "clickable": true},
+      "action": {"type": "CLICK_VERIFIED_NODE", "maxAttempts": 1, "cooldownMs": 0}
+    }
+  ]
+}

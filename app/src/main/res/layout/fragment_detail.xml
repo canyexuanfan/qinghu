@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/bg_page" android:paddingHorizontal="@dimen/page_gutter">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="@dimen/toolbar_height" android:orientation="horizontal" android:gravity="center_vertical">
+        <ImageButton android:id="@+id/back" style="@style/IconButton" android:src="@drawable/ic_back" android:contentDescription="返回"/>
+        <TextView android:id="@+id/pageTitle" style="@style/Text.Title" android:layout_width="0dp" android:layout_weight="1" android:text=""/>
+        <ImageButton android:id="@+id/toolbarAction" style="@style/IconButton" android:src="@drawable/ic_more" android:contentDescription="更多选项" android:visibility="visible"/>
+    </LinearLayout>
+    <androidx.core.widget.NestedScrollView android:id="@+id/scroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:clipToPadding="false" android:scrollbars="none" android:paddingBottom="16dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center_horizontal" android:paddingTop="8dp" android:paddingBottom="10dp">
+                <ImageView android:id="@+id/appIcon" android:layout_width="90dp" android:layout_height="90dp" android:src="@drawable/ic_bag" android:importantForAccessibility="no"/>
+                <TextView android:id="@+id/appName" style="@style/Text.Title" android:text="应用详情" android:layout_marginTop="18dp" tools:text="某购物 App"/>
+                <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="12dp">
+                    <ImageView android:id="@+id/stateIcon" android:layout_width="27dp" android:layout_height="30dp" android:src="@drawable/status_shield" android:importantForAccessibility="no"/>
+                    <TextView android:id="@+id/appState" style="@style/Text.Body" android:text="待接入" android:textSize="19sp" android:textColor="@color/green" android:layout_marginStart="7dp" tools:text="已保护"/>
+                </LinearLayout>
+                <TextView style="@style/Text.Sub" android:text="广告少一点，体验好一点" android:textSize="15sp" android:layout_marginTop="14dp"/>
+            </LinearLayout>
+            <TextView style="@style/Text.Section" android:text="保护设置" android:layout_marginTop="24dp" android:layout_marginBottom="12dp"/>
+            <include android:id="@+id/cleaner" layout="@layout/item_policy" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp"/>
+            <include android:id="@+id/touch" layout="@layout/item_policy" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp"/>
+            <include android:id="@+id/sensor" layout="@layout/item_policy" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp"/>
+            <include android:id="@+id/jump" layout="@layout/item_policy" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp"/>
+            <TextView style="@style/Text.Section" android:text="高级设置" android:layout_marginTop="24dp" android:layout_marginBottom="12dp"/>
+            <include android:id="@+id/strength" layout="@layout/item_detail_action" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp"/>
+            <include android:id="@+id/records" layout="@layout/item_detail_action" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="0dp"/>
+            <TextView android:id="@+id/note" style="@style/Text.Sub" android:text="" android:layout_marginTop="20dp" android:visibility="gone"/>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

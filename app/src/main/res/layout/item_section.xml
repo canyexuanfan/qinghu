@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical" android:orientation="horizontal">
+    <TextView android:id="@+id/title" style="@style/Text.Section" android:layout_width="0dp" android:layout_weight="1" tools:text="全部应用"/>
+    <TextView android:id="@+id/sortAction" style="@style/Text.Sub" android:layout_height="48dp" android:gravity="center" android:text="按名称排序⌄" android:clickable="true" android:focusable="true" android:visibility="gone" android:background="?attr/selectableItemBackground"/>
+</LinearLayout>

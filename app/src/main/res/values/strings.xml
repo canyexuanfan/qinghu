@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="preview_banner">原生界面预览 · 示例数据，未执行防护</string>
+    <string name="integration_banner">防护引擎运行中 · 规则自动识别并处理广告</string>
+    <string name="home">首页</string>
+    <string name="apps">应用</string>
+    <string name="records">记录</string>
+    <string name="settings">我的</string>
+    <string name="search_apps">搜索应用名称</string>
+    <string name="loading">正在读取本地数据…</string>
+    <string name="empty_apps">没有找到应用</string>
+    <string name="empty_records">暂无保护记录</string>
+    <string name="policy_saved">策略已保存；实际防护取决于已接入能力。</string>
+    <string name="accessibility_service_description">轻护广告净化：监听窗口变化以识别广告与高风险区域，自动关闭可安全识别的广告、保护误触区域。所有识别均在本机完成，不上传任何屏幕内容。可在系统设置中随时关闭。</string>
+</resources>

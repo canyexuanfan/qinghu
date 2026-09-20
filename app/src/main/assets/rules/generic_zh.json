@@ -1,0 +1,1069 @@
+{
+  "schemaVersion": 1,
+  "id": "qinghu.builtin.generic.zh",
+  "version": 15,
+  "provenance": {
+    "author": "Qinghu",
+    "license": "PROJECT-OWNED",
+    "source": "self-authored-generic + user-observation-log"
+  },
+  "rules": [
+    {
+      "id": "generic.splash.skip",
+      "version": 4,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password",
+          "confirm_pay"
+        ]
+      },
+      "match": {
+        "textEquals": "跳过",
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 2000
+      }
+    },
+    {
+      "id": "generic.splash.skip_ad",
+      "version": 4,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textEquals": "跳过广告",
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 2000
+      }
+    },
+    {
+      "id": "generic.splash.skip_broad",
+      "version": 5,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textContains": "跳过",
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 2000
+      }
+    },
+    {
+      "id": "generic.splash.skip_en",
+      "version": 4,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textEquals": "Skip",
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 2000
+      }
+    },
+    {
+      "id": "generic.splash.skip_ad_en",
+      "version": 4,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textEquals": "Skip Ad",
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 2000
+      }
+    },
+    {
+      "id": "generic.interstitial.close_ad",
+      "version": 4,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textEquals": "关闭广告",
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      }
+    },
+    {
+      "id": "generic.sdk.skip_view_suffix",
+      "version": 4,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "classNameSuffix": "SkipView",
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      }
+    },
+    {
+      "id": "generic.sdk.skip_button_suffix",
+      "version": 4,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "classNameSuffix": "SkipButton",
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      }
+    },
+    {
+      "id": "generic.sdk.ad_close_view_suffix",
+      "version": 4,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "classNameSuffix": "AdCloseView",
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      }
+    },
+    {
+      "id": "generic.splash.btn_skip",
+      "version": 2,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "btn_skip",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "btn_skip",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.splash.skip_btn",
+      "version": 2,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "skip_btn",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "skip_btn",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.modal.tv_skip",
+      "version": 2,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "tv_skip",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "tv_skip",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.splash.tv_skip_ad",
+      "version": 3,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "tv_skip_ad",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "tv_skip_ad",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.splash.skip_view",
+      "version": 3,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "skip_view",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "skip_view",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.splash.skip_text",
+      "version": 3,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "skip_text",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "skip_text",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.splash.skip_button",
+      "version": 3,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "skip_button",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "skip_button",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.splash.splash_skip",
+      "version": 3,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "splash_skip",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "splash_skip",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.splash.ad_skip",
+      "version": 3,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "ad_skip",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "ad_skip",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.ksad.skip_view",
+      "version": 3,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "ksad_skip_view",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "ksad_skip_view",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.gdt.skip_view",
+      "version": 3,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "gdt_skip_view",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "gdt_skip_view",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.gdt.ad_skip_view",
+      "version": 3,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "gdt_ad_skip_view",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "gdt_ad_skip_view",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.modal.close_btn",
+      "version": 2,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "close_btn",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "close_btn",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.modal.iv_close",
+      "version": 2,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "iv_close",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "iv_close",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.modal.btn_close",
+      "version": 2,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "btn_close",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "btn_close",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.modal.iv_ad_close",
+      "version": 3,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "iv_ad_close",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "iv_ad_close",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.modal.ad_close",
+      "version": 3,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "ad_close",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "ad_close",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.modal.close_icon",
+      "version": 3,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "close_icon",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "close_icon",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "generic.modal.tv_close",
+      "version": 3,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "self-authored-generic"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "tv_close",
+        "clickable": true,
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 1,
+        "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentViewId": "tv_close",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "obs.youku.skip_container",
+      "version": 7,
+      "provenance": {
+        "author": "轻护用户设备观察日志（本项目）",
+        "license": "PROJECT-OWNED",
+        "source": "user-observation-log"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewIdContains": "splash_ad_count_and_skip_container",
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 3000
+      }
+    },
+    {
+      "id": "obs.ptg.splash_skip",
+      "version": 7,
+      "provenance": {
+        "author": "轻护用户设备观察日志（本项目）",
+        "license": "PROJECT-OWNED",
+        "source": "user-observation-log"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewIdContains": "ptgSkipLayout",
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 3000
+      }
+    },
+    {
+      "id": "obs.ptg.splash_skip_fl",
+      "version": 7,
+      "provenance": {
+        "author": "轻护用户设备观察日志（本项目）",
+        "license": "PROJECT-OWNED",
+        "source": "user-observation-log"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewIdContains": "ptgSplashSkipFl",
+        "windowTextContainsAny": [
+          "广告"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 3000
+      }
+    }
+  ]
+}

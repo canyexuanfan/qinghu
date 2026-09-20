@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="@dimen/app_row_height" android:paddingHorizontal="12dp" android:paddingVertical="9dp" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/bg_ripple_card" android:clickable="true" android:focusable="true" android:foreground="?attr/selectableItemBackground">
+    <ImageView android:id="@+id/icon" android:layout_width="48dp" android:layout_height="48dp" android:src="@drawable/ic_bag" android:importantForAccessibility="no"/>
+    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginStart="12dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+            <TextView android:id="@+id/name" style="@style/Text.Body" android:layout_width="0dp" android:layout_weight="1" android:maxLines="1" android:ellipsize="end" tools:text="某购物 App"/>
+            <TextView android:id="@+id/status" style="@style/Text.Pill" android:text="待接入" android:layout_marginStart="3dp"/>
+        </LinearLayout>
+        <TextView android:id="@+id/description" style="@style/Text.Sub" android:text="广告净化 · 防摇一摇 · 防误触" android:textSize="12sp" android:layout_marginTop="4dp" android:maxLines="1" android:ellipsize="end"/>
+    </LinearLayout>
+    <ImageView android:id="@+id/chevron" android:layout_width="16dp" android:layout_height="20dp" android:src="@drawable/ic_chevron" android:layout_marginStart="4dp" android:importantForAccessibility="no"/>
+</LinearLayout>
