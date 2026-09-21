@@ -4,7 +4,7 @@
         <ImageView android:id="@+id/brandIcon" android:layout_width="54dp" android:layout_height="45dp" android:src="@drawable/brand_symbol" android:scaleType="fitCenter" android:contentDescription="轻护标志"/>
         <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginStart="4dp">
             <TextView android:id="@+id/title" style="@style/Text.Body" android:text="导出记录" android:textSize="17sp"/>
-            <TextView style="@style/Text.Sub" android:text="选择范围后生成文本（防护记录+观察日志），分享给开发者补规则" android:textSize="11sp"/>
+            <TextView android:id="@+id/subtitle" style="@style/Text.Sub" android:text="选择范围后生成文本（防护记录+观察日志），分享给开发者补规则" android:textSize="11sp"/>
         </LinearLayout>
         <ImageButton android:id="@+id/back" style="@style/IconButton" android:src="@drawable/ic_back" android:contentDescription="返回"/>
     </LinearLayout>

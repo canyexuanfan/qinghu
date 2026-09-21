@@ -70,6 +70,11 @@ class ObserveExportFragment : Fragment() {
         lastExportAtMs = prefs.getLong("lastExportAtMs", 0L)
         val fmt = SimpleDateFormat("MM-dd HH:mm", Locale.US)
         val dayStart = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        // 内容范围在进入本页前已选（0=全部 1=仅防护 2=仅拦截失败），列表只展示所选类型
+        val scope = arguments?.getInt("scope", 0) ?: 0
+        val scopeLabel = when (scope) { 1 -> "仅防护记录"; 2 -> "仅拦截失败记录"; else -> "全部（防护记录 + 拦截失败）" }
+        b.title.text = "导出记录（$scopeLabel）"
+        b.subtitle.text = "在筛选后的记录中勾选，生成文本分享给开发者补规则"
         b.back.setOnClickListener { parentFragmentManager.popBackStack() }
         fun selectTab(byApp: Boolean) {
             listOf(b.tabByApp to byApp, b.tabByTime to !byApp).forEach { (tab, sel) ->
@@ -84,28 +89,32 @@ class ObserveExportFragment : Fragment() {
         b.tabByTime.setOnClickListener { selectTab(false) }
         selectTab(true)
 
-        // 数据源：防护记录 + 观察日志，统一 entry id
+        // 数据源：防护记录 + 观察日志，按进入时选定的内容范围过滤
         fun label(pkg: String) = try { pm.getApplicationInfo(pkg, 0).loadLabel(pm).toString() } catch (_: Exception) { pkg }
         val entries = mutableListOf<ExportEntry>()
-        for (r in app.recordStore.all.value) {
-            // CleanerRecord → ProtectionRecord 展示映射：明细复用记录页同款渲染
-            val cap = try { Capability.valueOf(r.capability) } catch (_: Exception) { Capability.CLEANER }
-            val outcome = when (r.outcome.name) {
-                "VERIFIED" -> Outcome.CLOSED
-                "EXECUTED" -> Outcome.SENSOR_APPLIED
-                "FAILED" -> Outcome.OBSERVED
-                "START_REJECTED" -> Outcome.START_REJECTED
-                else -> Outcome.CLOSED
+        if (scope != 2) {
+            for (r in app.recordStore.all.value) {
+                // CleanerRecord → ProtectionRecord 展示映射：明细复用记录页同款渲染
+                val cap = try { Capability.valueOf(r.capability) } catch (_: Exception) { Capability.CLEANER }
+                val outcome = when (r.outcome.name) {
+                    "VERIFIED" -> Outcome.CLOSED
+                    "EXECUTED" -> Outcome.SENSOR_APPLIED
+                    "FAILED" -> Outcome.OBSERVED
+                    "START_REJECTED" -> Outcome.START_REJECTED
+                    else -> Outcome.CLOSED
+                }
+                val pr = ProtectionRecord(
+                    id = 0, appId = r.packageName, appName = label(r.packageName), capability = cap,
+                    timestamp = r.atEpochMs, outcome = outcome,
+                    detail = "规则 ${r.ruleId} v${r.ruleVersion} · ${r.capability}", sample = false
+                )
+                entries.add(ExportEntry(entries.size, r.atEpochMs, r.packageName, cleaner = r, display = pr))
             }
-            val pr = ProtectionRecord(
-                id = 0, appId = r.packageName, appName = label(r.packageName), capability = cap,
-                timestamp = r.atEpochMs, outcome = outcome,
-                detail = "规则 ${r.ruleId} v${r.ruleVersion} · ${r.capability}", sample = false
-            )
-            entries.add(ExportEntry(entries.size, r.atEpochMs, r.packageName, cleaner = r, display = pr))
         }
-        for (o in app.observeStore.all.value) {
-            entries.add(ExportEntry(entries.size, o.atEpochMs, o.packageName, observation = o))
+        if (scope != 1) {
+            for (o in app.observeStore.all.value) {
+                entries.add(ExportEntry(entries.size, o.atEpochMs, o.packageName, observation = o))
+            }
         }
         allEntries = entries.sortedByDescending { it.time }
         // id 在排序后重排，保证稳定且 selected 初始化为全选
@@ -255,30 +264,27 @@ class ObserveExportFragment : Fragment() {
     }
 
     private fun doExport(prefs: android.content.SharedPreferences) {
+        val scope = arguments?.getInt("scope", 0) ?: 0
+        val scopeLabel = when (scope) { 1 -> "仅防护记录"; 2 -> "仅拦截失败记录"; else -> "全部（防护记录 + 拦截失败）" }
         val chosen = allEntries.filter { it.id in selected }
         val recs = chosen.mapNotNull { it.cleaner }
         val obs = chosen.mapNotNull { it.observation }
         if (recs.isEmpty() && obs.isEmpty()) {
             android.app.AlertDialog.Builder(requireContext()).setTitle("没有可选记录")
-                .setMessage("所选范围内暂无记录。").setPositiveButton("知道了", null).show()
+                .setMessage("所选范围内暂无勾选记录。").setPositiveButton("知道了", null).show()
             return
         }
-        // 历史行为（v0.2.18 起，用户要求）：导出时可选内容范围（全部 / 仅防护记录 / 仅拦截失败记录）
-        android.app.AlertDialog.Builder(requireContext()).setTitle("导出内容")
-            .setItems(arrayOf("全部（防护记录 + 拦截失败）", "仅防护记录（已关闭/已保护）", "仅拦截失败记录")) { _, which ->
-                val outRecs = if (which == 2) emptyList() else recs
-                val outObs = if (which == 1) emptyList() else obs
-                share(prefs, outRecs, outObs)
-            }.show()
+        share(prefs, scopeLabel, recs, obs)
     }
 
     private fun share(
         prefs: android.content.SharedPreferences,
+        scopeLabel: String,
         recs: List<top.hnwen17.guard.data.records.RecordStore.CleanerRecord>,
         obs: List<top.hnwen17.guard.data.records.ObserveStore.Observation>
     ) {
         val text = buildString {
-            append("轻护记录导出 v${top.hnwen17.guard.BuildConfig.VERSION_NAME}（本机生成，仅供规则适配；防护 ${recs.size} 条 + 拦截失败 ${obs.size} 条）\n")
+            append("轻护记录导出 v${top.hnwen17.guard.BuildConfig.VERSION_NAME}（本机生成，仅供规则适配；范围=$scopeLabel；防护 ${recs.size} 条 + 拦截失败 ${obs.size} 条）\n")
             val fmt = SimpleDateFormat("MM-dd HH:mm:ss", Locale.US)
             if (recs.isNotEmpty()) {
                 append("\n== 防护记录（已执行动作）==")

@@ -229,11 +229,17 @@ class SettingsFragment : BoundFragment<FragmentSettingsBinding>(FragmentSettings
                         .setMessage("重置本构建的开关、强度与记录，不修改其他应用。")
                         .setPositiveButton("确认") { _, _ -> model.repository.reset() }
                         .setNegativeButton("取消", null).show()
-                    2 -> requireActivity().supportFragmentManager.beginTransaction()
-                        .setReorderingAllowed(true)
-                        .replace(top.hnwen17.guard.R.id.content, ObserveExportFragment(), "observe_export")
-                        .addToBackStack("observe_export")
-                        .commit()
+                    2 -> AlertDialog.Builder(requireContext()).setTitle("导出内容")
+                        .setItems(arrayOf("全部（防护记录 + 拦截失败）", "仅防护记录（已关闭/已保护）", "仅拦截失败记录")) { _, which ->
+                            val frag = ObserveExportFragment().apply {
+                                arguments = android.os.Bundle().apply { putInt("scope", which) }
+                            }
+                            requireActivity().supportFragmentManager.beginTransaction()
+                                .setReorderingAllowed(true)
+                                .replace(top.hnwen17.guard.R.id.content, frag, "observe_export")
+                                .addToBackStack("observe_export")
+                                .commit()
+                        }.show()
                     3 -> (requireContext().applicationContext as top.hnwen17.guard.GuardApplication).observeStore.clear()
                 }
             }.show()
