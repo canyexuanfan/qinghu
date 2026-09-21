@@ -136,28 +136,46 @@ class ObserveExportFragment : Fragment() {
         }
         binding.selectAll.setOnCheckedChangeListener { _, checked -> appChecks.values.forEach { it.isChecked = checked } }
 
-        // 按时间
+        // 按时间：三档范围，点击展开/折叠查看该范围内的具体记录
         val ranges = listOf(
-            Triple("自上次导出以来", if (lastExportAtMs > 0) "上次导出于 ${fmt.format(Date(lastExportAtMs))}" else "暂无上次导出，等同全部", lastExportAtMs),
+            Triple("自上次导出以来", if (lastExportAtMs > 0) "上次导出于 " + fmt.format(Date(lastExportAtMs)) else "暂无上次导出，等同全部", lastExportAtMs),
             Triple("今天", "当日 00:00 起", dayStart),
             Triple("全部", "所有记录", 0L)
         )
-        var checkedTime: CheckBox? = null
         for ((idx, range) in ranges.withIndex()) {
-            val count = allEntries.count { it.time >= range.third }
+            val rangeStart = range.third
+            val rangeEnd = ranges.getOrNull(idx + 1)?.third ?: Long.MAX_VALUE
+            val rangeEntries = allEntries.filter { it.time >= rangeStart && it.time < rangeEnd }
             val row = ItemAppBinding.inflate(layoutInflater)
-            row.name.text = range.first
-            row.status.text = "$count 条"
+            row.name.text = "${range.first}（${rangeEntries.size} 条）"
             row.description.text = range.second
             row.icon.setImageDrawable(ContextCompat.getDrawable(requireContext(), R.drawable.ic_records))
             row.chevron.isVisible = false
-            val check = CheckBox(requireContext()).apply { isChecked = idx == 0 }
-            row.root.addView(check, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            check.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) { checkedTime?.let { if (it !== check) it.isChecked = false }; checkedTime = check }
-            }
             binding.timeList.addView(row.root)
-            timeChecks.add(check to range.third)
+
+            val childContainer = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL; visibility = View.GONE; setPadding(80, 0, 12, 8)
+            }
+            for (e in rangeEntries.sortedByDescending { it.time }) {
+                val cr = LinearLayout(requireContext()).apply {
+                    orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(16, 12, 16, 12)
+                }
+                val tv = TextView(requireContext()).apply {
+                    text = SimpleDateFormat("MM-dd HH:mm", Locale.US).format(Date(e.time)); textSize = 12f
+                    setTextColor(ContextCompat.getColor(requireContext(), R.color.sub))
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                }
+                val av = TextView(requireContext()).apply {
+                    text = "${e.appName} ${e.action}"; textSize = 13f
+                    setTextColor(ContextCompat.getColor(requireContext(), R.color.ink))
+                }
+                cr.addView(tv); cr.addView(av)
+                childContainer.addView(cr)
+            }
+            binding.timeList.addView(childContainer)
+            row.root.setOnClickListener {
+                childContainer.visibility = if (childContainer.visibility == View.GONE) View.VISIBLE else View.GONE
+            }
         }
 
         binding.exportBtn.setOnClickListener { export(app, prefs) }
