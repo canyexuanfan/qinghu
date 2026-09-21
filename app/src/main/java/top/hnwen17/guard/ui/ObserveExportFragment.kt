@@ -139,14 +139,15 @@ class ObserveExportFragment : Fragment() {
                 orientation = LinearLayout.VERTICAL; visibility = View.GONE; setPadding(48, 0, 12, 8)
             }
             for (e in list.sortedByDescending { it.time }) childContainer.addView(entryRow(e))
-            b.appList.addView(childContainer)
             row.root.setOnClickListener {
                 // Set.remove 返回 Boolean（是否原本存在）——误写 != null 恒真导致永不展开
                 val wasExpanded = expandedApps.remove(pkg)
                 if (!wasExpanded) expandedApps.add(pkg)
                 childContainer.isVisible = !wasExpanded
             }
+            // 行在上、明细在下（addView 顺序决定展开位置）
             b.appList.addView(row.root)
+            b.appList.addView(childContainer)
         }
 
         if (grouped.isEmpty()) {
@@ -181,6 +182,13 @@ class ObserveExportFragment : Fragment() {
 
             val childContainer = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.VERTICAL; visibility = View.GONE; setPadding(48, 0, 12, 8)
+            }
+            if (rangeEntries.isEmpty()) {
+                // 空范围也给出可见反馈，避免「点了没反应」
+                childContainer.addView(TextView(requireContext()).apply {
+                    text = "该范围暂无记录"; setPadding(16, 12, 16, 12)
+                    setTextColor(ContextCompat.getColor(requireContext(), R.color.sub))
+                })
             }
             for (e in rangeEntries.sortedByDescending { it.time }) childContainer.addView(entryRow(e))
             row.root.setOnClickListener {
@@ -229,8 +237,9 @@ class ObserveExportFragment : Fragment() {
             refreshChecks()
         }
         entryChecks.getOrPut(e.id) { mutableListOf() }.add(check)
-        row.addView(check)
+        // 勾选框放行尾，与应用行勾选框同列对齐（行内垂直居中）
         row.addView(item.root, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(check)
         return row
     }
 
