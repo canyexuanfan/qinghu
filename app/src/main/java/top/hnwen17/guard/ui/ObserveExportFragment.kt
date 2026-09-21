@@ -54,8 +54,9 @@ class ObserveExportFragment : Fragment() {
 
     private data class ExportEntry(
         val id: Int, val time: Long, val pkg: String,
-        val record: ProtectionRecord?,
-        val observation: top.hnwen17.guard.data.records.ObserveStore.Observation?
+        val cleaner: top.hnwen17.guard.data.records.RecordStore.CleanerRecord? = null,
+        val display: ProtectionRecord? = null,
+        val observation: top.hnwen17.guard.data.records.ObserveStore.Observation? = null
     )
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -101,10 +102,10 @@ class ObserveExportFragment : Fragment() {
                 timestamp = r.atEpochMs, outcome = outcome,
                 detail = "规则 ${r.ruleId} v${r.ruleVersion} · ${r.capability}", sample = false
             )
-            entries.add(ExportEntry(entries.size, r.atEpochMs, r.packageName, pr, null))
+            entries.add(ExportEntry(entries.size, r.atEpochMs, r.packageName, cleaner = r, display = pr))
         }
         for (o in app.observeStore.all.value) {
-            entries.add(ExportEntry(entries.size, o.atEpochMs, o.packageName, null, o))
+            entries.add(ExportEntry(entries.size, o.atEpochMs, o.packageName, observation = o))
         }
         allEntries = entries.sortedByDescending { it.time }
         // id 在排序后重排，保证稳定且 selected 初始化为全选
@@ -120,7 +121,7 @@ class ObserveExportFragment : Fragment() {
             row.name.text = label(list.first())
             row.status.text = "${list.size} 条"
             val latest = list.maxOfOrNull { it.time } ?: 0L
-            val kinds = list.groupBy { if (it.record != null) "防护" else "未拦截" }.entries.joinToString(" · ") { "${it.key} ${it.value.size}" }
+            val kinds = list.groupBy { if (it.cleaner != null) "防护" else "未拦截" }.entries.joinToString(" · ") { "${it.key} ${it.value.size}" }
             row.description.text = "最近 ${fmt.format(Date(latest))} · $kinds"
             try { row.icon.setImageDrawable(pm.getApplicationIcon(pkg)) } catch (_: Exception) { }
             row.chevron.isVisible = true
@@ -217,8 +218,8 @@ class ObserveExportFragment : Fragment() {
         }
         val check = CheckBox(requireContext())
         val item = ItemRecordBinding.inflate(layoutInflater)
-        if (e.record != null) {
-            showRecord(item, e.record) // 与记录页完全一致的标题/状态/图标/描述
+        if (e.display != null) {
+            showRecord(item, e.display) // 与记录页完全一致的标题/状态/图标/描述
         } else {
             val o = e.observation
             val appName = try {
@@ -255,32 +256,44 @@ class ObserveExportFragment : Fragment() {
 
     private fun doExport(prefs: android.content.SharedPreferences) {
         val chosen = allEntries.filter { it.id in selected }
-        if (chosen.isEmpty()) {
+        val recs = chosen.mapNotNull { it.cleaner }
+        val obs = chosen.mapNotNull { it.observation }
+        if (recs.isEmpty() && obs.isEmpty()) {
             android.app.AlertDialog.Builder(requireContext()).setTitle("没有可选记录")
                 .setMessage("所选范围内暂无记录。").setPositiveButton("知道了", null).show()
             return
         }
-        val pm = requireContext().packageManager
-        fun label(pkg: String) = try { pm.getApplicationInfo(pkg, 0).loadLabel(pm).toString() } catch (_: Exception) { pkg }
+        // 历史行为（v0.2.18 起，用户要求）：导出时可选内容范围（全部 / 仅防护记录 / 仅拦截失败记录）
+        android.app.AlertDialog.Builder(requireContext()).setTitle("导出内容")
+            .setItems(arrayOf("全部（防护记录 + 拦截失败）", "仅防护记录（已关闭/已保护）", "仅拦截失败记录")) { _, which ->
+                val outRecs = if (which == 2) emptyList() else recs
+                val outObs = if (which == 1) emptyList() else obs
+                share(prefs, outRecs, outObs)
+            }.show()
+    }
+
+    private fun share(
+        prefs: android.content.SharedPreferences,
+        recs: List<top.hnwen17.guard.data.records.RecordStore.CleanerRecord>,
+        obs: List<top.hnwen17.guard.data.records.ObserveStore.Observation>
+    ) {
         val text = buildString {
-            append("轻护记录导出 v${top.hnwen17.guard.BuildConfig.VERSION_NAME}（本机生成，仅供规则适配；共 ${chosen.size} 条）\n")
+            append("轻护记录导出 v${top.hnwen17.guard.BuildConfig.VERSION_NAME}（本机生成，仅供规则适配；防护 ${recs.size} 条 + 拦截失败 ${obs.size} 条）\n")
             val fmt = SimpleDateFormat("MM-dd HH:mm:ss", Locale.US)
-            for (e in chosen) {
-                val date = fmt.format(Date(e.time))
-                if (e.record != null) {
-                    val title = when (e.record.capability) {
-                        Capability.CLEANER -> if (e.record.outcome == Outcome.OBSERVED) "拦截失败" else "已关闭广告"
-                        Capability.TOUCH -> "防止广告误触"
-                        Capability.SENSOR -> "防止摇一摇广告"
-                        Capability.JUMP -> "阻止异常跳转"
-                    }
-                    append("\n[$date] ${e.pkg} 防护 $title（${label(e.pkg)}）")
-                    append("\n  detail: ${e.record.detail}")
-                } else {
-                    val o = e.observation
-                    val reason = if (o?.reason == "miss") "无可用规则" else "点击未生效"
-                    append("\n[$date] ${e.pkg} 未拦截 未拦截（$reason）（${label(e.pkg)}）")
-                    append("\n  detail: ${o?.className.orEmpty()}")
+            if (recs.isNotEmpty()) {
+                append("\n== 防护记录（已执行动作）==")
+                for (r in recs.sortedByDescending { it.atEpochMs }) {
+                    append("\n[${fmt.format(Date(r.atEpochMs))}] ${r.packageName} ${r.outcome.name}")
+                    append("\n  rule: ${r.ruleId} v${r.ruleVersion} capability=${r.capability}")
+                }
+            }
+            if (obs.isNotEmpty()) {
+                append("\n\n== 拦截失败记录（识别到疑似广告窗口）==")
+                for (o in obs.sortedByDescending { it.atEpochMs }) {
+                    val reasonCn = if (o.reason == "miss") "无可用规则" else "点击未生效"
+                    append("\n[${fmt.format(Date(o.atEpochMs))}] ${o.packageName} 拦截失败（$reasonCn）")
+                    if (o.className.isNotEmpty()) append("\n  window: ${o.className}")
+                    o.samples.forEach { append("\n  · $it") }
                 }
             }
         }
