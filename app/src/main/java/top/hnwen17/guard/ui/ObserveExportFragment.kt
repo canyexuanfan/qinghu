@@ -129,16 +129,15 @@ class ObserveExportFragment : Fragment() {
             }
         }
         allEntries = entries.sortedByDescending { it.time }
-        // id 在排序后重排，保证稳定且 selected 初始化为全选
         allEntries = allEntries.mapIndexed { idx, e -> e.copy(id = idx) }
-        // 勾选持久化：仅用于进程意外被杀后的页面重建恢复（主动进入时入口已清空存档）
+        // 勾选持久化：仅用于进程意外被杀后的页面重建恢复（主动进入时入口已清空存档）。
+        // 默认全部不选（用户要求）：避免「默认全选 + 范围重叠」被误解为没选任何东西却导出全部；
+        // 用户按需勾选应用/时间范围，按钮实时显示「导出已选 N 条」。
         val savedSel = prefs.getStringSet("selected_$scope", null)
         val allKeys = allEntries.map { it.key }.toSet()
         if (savedSel != null && savedSel.any { it in allKeys }) {
             selected.addAll(savedSel.intersect(allKeys))
             restoredCount = selected.size
-        } else {
-            selected.addAll(allKeys)
         }
 
         fun label(e: ExportEntry) = label(e.pkg)
@@ -186,7 +185,7 @@ class ObserveExportFragment : Fragment() {
             })
         }
 
-        // 按时间分组（各范围均为「起点之后」，允许重叠；同一记录勾选状态互通）
+        // 按时间分组（各范围均为「起点之后」；范围间单选互斥：勾一个取代其他，默认不选）
         val ranges = listOf(
             Triple("自上次导出以来", if (lastExportAtMs > 0) "上次导出于 " + fmt.format(Date(lastExportAtMs)) else "暂无上次导出，等同全部", lastExportAtMs),
             Triple("今天", "当日 00:00 起", dayStart),
@@ -205,7 +204,13 @@ class ObserveExportFragment : Fragment() {
             val ids = rangeEntries.map { it.key }.toMutableList()
             check.setOnCheckedChangeListener { _, isChecked ->
                 if (suppress) return@setOnCheckedChangeListener
-                if (isChecked) selected.addAll(ids) else selected.removeAll(ids)
+                // 单选语义：勾选一个范围即以其取代其他选择（用户心智：选一个时间范围）
+                if (isChecked) {
+                    selected.clear()
+                    selected.addAll(ids)
+                } else {
+                    selected.removeAll(ids)
+                }
                 refreshChecks()
             }
             timeChecks.add(check to ids)
