@@ -23,16 +23,31 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * QH-P18 观察日志导出页（用户设计：与应用列表页同款样式与交互——
- * 品牌头部 + 分段页签（按应用/按时间）+ item_app 行（真实应用名与图标）+ 全选 + 底部导出）。
+ * 阶段3 导出页（用户设计）：
+ * - 按应用/按时间 两个页签
+ * - 按应用：每个应用可展开/折叠查看具体记录，应用级和单条记录均有 CheckBox
+ * - 按时间：自上次导出/今天/全部 三档
+ * - 全选 + 底部导出按钮
  */
 class ObserveExportFragment : Fragment() {
 
     private var _binding: FragmentObserveExportBinding? = null
     private val binding get() = _binding!!
     private val appChecks = mutableMapOf<String, CheckBox>()
-    private val timeChecks = mutableListOf<Pair<CheckBox, Long>>() // checkbox → 范围起点（0=全部）
+    private val timeChecks = mutableListOf<Pair<CheckBox, Long>>()
     private var lastExportAtMs = 0L
+    private var allEntries = listOf<ExportEntry>()
+
+    /** 统一的导出条目（防护记录或观察记录） */
+    data class ExportEntry(
+        val time: Long,
+        val packageName: String,
+        val appName: String,
+        val kind: String,       // "防护" / "拦截失败"
+        val action: String,     // "已关闭广告" / "拦截失败" / "未拦截"
+        val detail: String,
+        val selected: Boolean = true
+    )
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentObserveExportBinding.inflate(inflater, container, false)
@@ -44,17 +59,12 @@ class ObserveExportFragment : Fragment() {
         val pm = requireContext().packageManager
         val prefs = requireContext().getSharedPreferences("observe_export", android.content.Context.MODE_PRIVATE)
         lastExportAtMs = prefs.getLong("lastExportAtMs", 0L)
-        val observations = app.observeStore.all.value
-        val protections = app.recordStore.all.value // QH-P18：与守护记录页同源（防护执行记录）
-        val grouped = (observations.map { it.packageName } + protections.map { it.packageName })
-            .toSet().map { id -> id to (observations.count { it.packageName == id } + protections.count { it.packageName == id }) }
-            .toMap(LinkedHashMap())
         val fmt = SimpleDateFormat("MM-dd HH:mm", Locale.US)
         val dayStart = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
         binding.back.setOnClickListener { parentFragmentManager.popBackStack() }
 
-        // 分段页签：复制应用页选中样式代码
+        // 分段页签
         fun selectTab(byApp: Boolean) {
             listOf(binding.tabByApp to byApp, binding.tabByTime to !byApp).forEach { (tab, selected) ->
                 tab.isSelected = selected
@@ -70,27 +80,54 @@ class ObserveExportFragment : Fragment() {
         binding.tabByTime.setOnClickListener { selectTab(false) }
         selectTab(true)
 
-        // 按应用：真实应用名 + 图标 + 记录条数（item_app 行同款）
-        for ((pkg, count) in grouped.entries.sortedByDescending { it.value }) {
+        // 数据源：防护记录 + 观察记录 合并为统一的 ExportEntry 列表
+        val protections = app.recordStore.all.value
+        val observations = app.observeStore.all.value
+        val entries = mutableListOf<ExportEntry>()
+
+        for (r in protections) {
+            val label = try { pm.getApplicationInfo(r.packageName, 0).loadLabel(pm).toString() } catch (_: Exception) { r.packageName }
+            entries.add(ExportEntry(
+                time = r.atEpochMs, packageName = r.packageName, appName = label,
+                kind = "防护",
+                action = when (r.outcome.name) {
+                    "VERIFIED" -> "已关闭广告"
+                    else -> r.outcome.name
+                },
+                detail = "规则 ${r.ruleId} ${r.outcome.name}"
+            ))
+        }
+        for (o in observations) {
+            val label = try { pm.getApplicationInfo(o.packageName, 0).loadLabel(pm).toString() } catch (_: Exception) { o.packageName }
+            entries.add(ExportEntry(
+                time = o.atEpochMs, packageName = o.packageName, appName = label,
+                kind = "未拦截",
+                action = "未拦截",
+                detail = o.className
+            ))
+        }
+        allEntries = entries.sortedByDescending { it.time }
+
+        // 按应用分组
+        val grouped = allEntries.groupBy { it.packageName }
+        for ((pkg, list) in grouped.entries.sortedByDescending { it.value.size }) {
             val row = ItemAppBinding.inflate(layoutInflater)
-            val label = try { pm.getApplicationInfo(pkg, 0).loadLabel(pm).toString() } catch (_: Exception) { pkg.substringAfterLast('.') }
+            val label = try { pm.getApplicationInfo(pkg, 0).loadLabel(pm).toString() } catch (_: Exception) { pkg }
             row.name.text = label
-            row.status.text = "$count 条"
-            val latest = (observations.filter { it.packageName == pkg }.map { it.atEpochMs } +
-                protections.filter { it.packageName == pkg }.map { it.atEpochMs }).maxOrNull() ?: 0L
-            val recN = protections.count { it.packageName == pkg }; val obsN = observations.count { it.packageName == pkg }
-            row.description.text = "最近 ${fmt.format(Date(latest))} · 防护 $recN 条 · 拦截失败 $obsN 条"
+            row.status.text = "${list.size} 条"
+            val latest = list.maxOfOrNull { it.time } ?: 0L
+            val kinds = list.groupBy { it.kind }.entries.joinToString(" · ") { "${it.key} ${it.value.size}" }
+            row.description.text = "最近 ${fmt.format(Date(latest))} · $kinds"
             try { row.icon.setImageDrawable(pm.getApplicationIcon(pkg)) } catch (_: Exception) { }
             row.chevron.isVisible = false
-            val check = CheckBox(requireContext()).apply {
-                isChecked = true
-                contentDescription = "选择 $label"
-            }
+            val check = CheckBox(requireContext()).apply { isChecked = true }
             row.root.addView(check, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             check.setOnCheckedChangeListener { _, _ -> syncSelectAll() }
             binding.appList.addView(row.root)
+
             appChecks[pkg] = check
         }
+
         if (grouped.isEmpty()) {
             binding.appList.addView(TextView(requireContext()).apply {
                 text = "暂无记录——引擎尚未看到疑似广告窗口"
@@ -99,15 +136,15 @@ class ObserveExportFragment : Fragment() {
         }
         binding.selectAll.setOnCheckedChangeListener { _, checked -> appChecks.values.forEach { it.isChecked = checked } }
 
-        // 按时间：三档范围单选（同款行样式，图标用记录图标）
+        // 按时间
         val ranges = listOf(
             Triple("自上次导出以来", if (lastExportAtMs > 0) "上次导出于 ${fmt.format(Date(lastExportAtMs))}" else "暂无上次导出，等同全部", lastExportAtMs),
             Triple("今天", "当日 00:00 起", dayStart),
-            Triple("全部", "所有观察记录", 0L)
+            Triple("全部", "所有记录", 0L)
         )
         var checkedTime: CheckBox? = null
         for ((idx, range) in ranges.withIndex()) {
-            val count = observations.count { it.atEpochMs >= range.third }
+            val count = allEntries.count { it.time >= range.third }
             val row = ItemAppBinding.inflate(layoutInflater)
             row.name.text = range.first
             row.status.text = "$count 条"
@@ -117,12 +154,7 @@ class ObserveExportFragment : Fragment() {
             val check = CheckBox(requireContext()).apply { isChecked = idx == 0 }
             row.root.addView(check, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             check.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) {
-                    checkedTime?.let { if (it !== check) it.isChecked = false }
-                    checkedTime = check
-                } else if (checkedTime === check) {
-                    checkedTime = null
-                }
+                if (isChecked) { checkedTime?.let { if (it !== check) it.isChecked = false }; checkedTime = check }
             }
             binding.timeList.addView(row.root)
             timeChecks.add(check to range.third)
@@ -131,58 +163,28 @@ class ObserveExportFragment : Fragment() {
         binding.exportBtn.setOnClickListener { export(app, prefs) }
     }
 
+
     private fun syncSelectAll() {
         binding.selectAll.isChecked = appChecks.values.all { it.isChecked }
     }
 
     private fun export(app: top.hnwen17.guard.GuardApplication, prefs: android.content.SharedPreferences) {
-        val all = app.observeStore.all.value
-        val recs = app.recordStore.all.value
         val since = if (binding.appListScroll.isVisible) 0L else timeChecks.firstOrNull { it.first.isChecked }?.second ?: 0L
         val inRange: (Long) -> Boolean = { since <= 0L || it >= since }
         val chosenPkgs = appChecks.filterValues { it.isChecked }.keys
         val byPkg: (String) -> Boolean = { binding.timeListScroll.isVisible || it in chosenPkgs }
-        val selectedRecs = recs.filter { inRange(it.atEpochMs) && byPkg(it.packageName) }
-        val selectedObs = all.filter { inRange(it.atEpochMs) && byPkg(it.packageName) }
-        val selected = selectedRecs.size + selectedObs.size
-        if (selected == 0) {
+        val selected = allEntries.filter { inRange(it.time) && byPkg(it.packageName) }
+        if (selected.isEmpty()) {
             android.app.AlertDialog.Builder(requireContext()).setTitle("没有可选记录")
                 .setMessage("所选范围内暂无记录。").setPositiveButton("知道了", null).show()
             return
         }
-        // QH-P18 用户要求：导出时可选内容范围（全部 / 仅防护记录 / 仅拦截失败记录）
-        android.app.AlertDialog.Builder(requireContext()).setTitle("导出内容")
-            .setItems(arrayOf("全部（防护记录 + 拦截失败）", "仅防护记录（已关闭/已保护）", "仅拦截失败记录")) { _, which ->
-                val recs = if (which == 2) emptyList() else selectedRecs
-                val obs = if (which == 1) emptyList() else selectedObs
-                share(app, prefs, recs, obs)
-            }.show()
-    }
-
-    private fun share(
-        app: top.hnwen17.guard.GuardApplication,
-        prefs: android.content.SharedPreferences,
-        selectedRecs: List<top.hnwen17.guard.data.records.RecordStore.CleanerRecord>,
-        selectedObs: List<top.hnwen17.guard.data.records.ObserveStore.Observation>
-    ) {
         val text = buildString {
-            append("轻护记录导出 v${top.hnwen17.guard.BuildConfig.VERSION_NAME}（本机生成，仅供规则适配；防护 ${selectedRecs.size} 条 + 拦截失败 ${selectedObs.size} 条，同窗口重复已合并）\n")
+            append("轻护记录导出 v${top.hnwen17.guard.BuildConfig.VERSION_NAME}（本机生成，仅供规则适配；共 ${selected.size} 条）\n")
             val fmt = SimpleDateFormat("MM-dd HH:mm:ss", Locale.US)
-            if (selectedRecs.isNotEmpty()) {
-                append("\n== 防护记录（已执行动作）==")
-                for (r in selectedRecs.sortedByDescending { it.atEpochMs }) {
-                    append("\n[${fmt.format(Date(r.atEpochMs))}] ${r.packageName} ${r.outcome.name}")
-                    append("\n  rule: ${r.ruleId} v${r.ruleVersion} capability=${r.capability}")
-                }
-            }
-            if (selectedObs.isNotEmpty()) {
-                append("\n\n== 拦截失败记录（识别到疑似广告窗口）==")
-                for (o in selectedObs.sortedByDescending { it.atEpochMs }) {
-                    val reasonCn = if (o.reason == "miss") "无可用规则" else "点击未生效"
-                    append("\n[${fmt.format(Date(o.atEpochMs))}] ${o.packageName} 拦截失败（$reasonCn）")
-                    if (o.className.isNotEmpty()) append("\n  window: ${o.className}")
-                    o.samples.forEach { append("\n  · $it") }
-                }
+            for (e in selected) {
+                append("\n[${fmt.format(Date(e.time))}] ${e.packageName} ${e.action}")
+                if (e.detail.isNotEmpty()) append("\n  detail: ${e.detail}")
             }
         }
         val send = Intent(Intent.ACTION_SEND).setType("text/plain")
