@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "qinghu.builtin.generic.zh",
-  "version": 18,
+  "version": 19,
   "provenance": {
     "author": "Qinghu",
     "license": "PROJECT-OWNED",
@@ -1103,7 +1103,7 @@
     },
     {
       "id": "generic.splash.skip_h5",
-      "version": 1,
+      "version": 2,
       "provenance": {
         "author": "Qinghu",
         "license": "PROJECT-OWNED",
@@ -1131,6 +1131,10 @@
         "type": "CLICK_VERIFIED_NODE",
         "maxAttempts": 2,
         "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentTextEquals": "互动广告",
+        "timeoutMs": 1200
       }
     },
     {
@@ -1167,7 +1171,7 @@
     },
     {
       "id": "generic.splash.skip_ad_label",
-      "version": 1,
+      "version": 2,
       "provenance": {
         "author": "Qinghu",
         "license": "PROJECT-OWNED",
@@ -1194,6 +1198,10 @@
         "type": "CLICK_VERIFIED_NODE",
         "maxAttempts": 2,
         "cooldownMs": 2000
+      },
+      "postcondition": {
+        "absentTextEquals": "广告",
+        "timeoutMs": 800
       }
     }
   ]

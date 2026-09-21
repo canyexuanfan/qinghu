@@ -350,10 +350,15 @@ object RuleParser {
     }
 
     private fun mapPost(obj: Map<String, JsonValue>): UiRule.Postcondition {
-        checkUnknownKeys(obj, setOf("absentViewId", "timeoutMs"), "postcondition")
+        checkUnknownKeys(obj, setOf("absentViewId", "absentTextEquals", "timeoutMs"), "postcondition")
         val timeout = num(obj, "timeoutMs")
         if (timeout < 0 || timeout > 10_000L) throw MapError(RuleErrorCode.MALFORMED_JSON, "timeoutMs=$timeout")
-        return UiRule.Postcondition(str(obj, "absentViewId"), timeout)
+        val absentViewId = (obj["absentViewId"] as? JsonValue.Str)?.value
+        val absentTextEquals = (obj["absentTextEquals"] as? JsonValue.Str)?.value
+        if (absentViewId == null && absentTextEquals == null) {
+            throw MapError(RuleErrorCode.MISSING_REQUIRED_FIELD, "postcondition needs absentViewId or absentTextEquals")
+        }
+        return UiRule.Postcondition(absentViewId ?: "", timeout, absentTextEquals)
     }
 
     private fun optStrList(obj: Map<String, JsonValue>, key: String): List<String>? =

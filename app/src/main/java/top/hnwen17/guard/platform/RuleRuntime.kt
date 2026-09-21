@@ -513,8 +513,28 @@ class RuleRuntime(
             kotlinx.coroutines.delay(timeout)
             val root = rootProvider()
             // 全树检查目标 viewId 是否仍存在（只查根节点会误判 VERIFIED——P08 实测缺陷）
-            val absent = rule.postcondition?.absentViewId?.let { vid ->
+            val post = rule.postcondition
+            val absent = post?.absentViewId?.let { vid ->
                 NodeSnapshotReader.containsViewId(root, vid)?.let { !it }
+            } ?: post?.absentTextEquals?.let { needle ->
+                // H5 无 viewId：以独立文本是否仍在窗口内判定关闭（trim 全文等于）
+                if (root == null) null else {
+                    val live = NodeSnapshotReader.snapshotLive(root)
+                    if (live == null) null else {
+                        try {
+                            if (!top.hnwen17.guard.core.rules.SnapshotNode.isWithinBudget(live.rootSnapshot)) return@let null
+                            var found = false
+                            fun scan(n: top.hnwen17.guard.core.rules.SnapshotNode) {
+                                if (found) return
+                                n.text?.trim()?.lowercase()?.let { if (it == needle.lowercase()) { found = true; return } }
+                                n.desc?.trim()?.lowercase()?.let { if (it == needle.lowercase()) { found = true; return } }
+                                for (c in n.children) scan(c)
+                            }
+                            scan(live.rootSnapshot)
+                            !found // 标记仍在=false(absent)=FAILED；标记消失=true=VERIFIED
+                        } finally { live.recycleAll() }
+                    }
+                }
             } ?: run {
                 // 无显式 postcondition 的通用后验：重新匹配同一规则。
                 // 命中节点仍在原地（如 H5「跳过」按钮未消失）= 点击未生效 → FAILED；

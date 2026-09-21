@@ -98,7 +98,9 @@ data class UiRule(
 
     data class Postcondition(
         val absentViewId: String,
-        val timeoutMs: Long
+        val timeoutMs: Long,
+        /** H5 广告无 viewId：以独立文本（trim 全文等于）是否消失作为关闭依据，如「互动广告」。 */
+        val absentTextEquals: String? = null
     )
 }
 

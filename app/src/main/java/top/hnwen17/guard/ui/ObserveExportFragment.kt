@@ -281,6 +281,7 @@ class ObserveExportFragment : Fragment() {
         for ((pkg, cb) in appChecks) cb.isChecked = appEntryIds[pkg].orEmpty().all { it in selected }
         for ((cb, ids) in timeChecks) cb.isChecked = ids.all { it in selected }
         selectAllBox?.isChecked = allEntries.all { it.key in selected }
+        b.exportBtn.text = "导出已选 ${selected.size} 条（共 ${allEntries.size} 条）"
         prefsRef?.let { persistSelection(it) }
         suppress = false
     }
@@ -296,7 +297,11 @@ class ObserveExportFragment : Fragment() {
                 .setMessage("所选范围内暂无勾选记录。").setPositiveButton("知道了", null).show()
             return
         }
-        share(prefs, scopeLabel, recs, obs)
+        // 导出确认：让「已选条数」在动手前再确认一次，防止状态异常时一键导出全部
+        android.app.AlertDialog.Builder(requireContext()).setTitle("确认导出")
+            .setMessage("即将导出已勾选的 ${chosen.size} 条记录（防护 ${recs.size} + 拦截失败 ${obs.size}）。\n\n若这与你的勾选预期不符，请取消并检查列表中的勾选状态。")
+            .setPositiveButton("确认导出") { _, _ -> share(prefs, scopeLabel, recs, obs) }
+            .setNegativeButton("取消", null).show()
     }
 
     private fun share(
