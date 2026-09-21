@@ -39,15 +39,17 @@ class ObserveExportFragment : Fragment() {
     private var lastExportAtMs = 0L
     private var allEntries = listOf<ExportEntry>()
 
-    /** 记录级勾选状态（entry id 集合），导出的最终事实。 */
-    private val selected = mutableSetOf<Int>()
+    /** 记录级勾选状态（entry key 集合），导出的最终事实；持久化跨进程重建恢复。 */
+    private val selected = mutableSetOf<String>()
 
     /** 同一 entry 在按应用/按时间两个列表各有一个 checkbox，统一刷新。 */
-    private val entryChecks = mutableMapOf<Int, MutableList<CheckBox>>()
+    private val entryChecks = mutableMapOf<String, MutableList<CheckBox>>()
     private val appChecks = linkedMapOf<String, CheckBox>()
-    private val appEntryIds = linkedMapOf<String, MutableList<Int>>()
-    private val timeChecks = mutableListOf<Pair<CheckBox, MutableList<Int>>>()
+    private val appEntryIds = linkedMapOf<String, MutableList<String>>()
+    private val timeChecks = mutableListOf<Pair<CheckBox, MutableList<String>>>()
     private var selectAllBox: CheckBox? = null
+    private var scopeInt = 0
+    private var prefsRef: android.content.SharedPreferences? = null
 
     /** 程序化 setChecked 时置位，避免联动 listener 级联触发。 */
     private var suppress = false
@@ -57,7 +59,10 @@ class ObserveExportFragment : Fragment() {
         val cleaner: top.hnwen17.guard.data.records.RecordStore.CleanerRecord? = null,
         val display: ProtectionRecord? = null,
         val observation: top.hnwen17.guard.data.records.ObserveStore.Observation? = null
-    )
+    ) {
+        /** 跨进程重建稳定的唯一键（时间+包名+类型），用于勾选持久化。 */
+        val key: String get() = "$time|$pkg|${if (cleaner != null) "p" else "o"}"
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _b = FragmentObserveExportBinding.inflate(inflater, container, false); return b.root
@@ -68,10 +73,12 @@ class ObserveExportFragment : Fragment() {
         val pm = requireContext().packageManager
         val prefs = requireContext().getSharedPreferences("observe_export", android.content.Context.MODE_PRIVATE)
         lastExportAtMs = prefs.getLong("lastExportAtMs", 0L)
+        prefsRef = prefs
         val fmt = SimpleDateFormat("MM-dd HH:mm", Locale.US)
         val dayStart = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         // 内容范围在进入本页前已选（0=全部 1=仅防护 2=仅拦截失败），列表只展示所选类型
         val scope = arguments?.getInt("scope", 0) ?: 0
+        scopeInt = scope
         val scopeLabel = when (scope) { 1 -> "仅防护记录"; 2 -> "仅拦截失败记录"; else -> "全部（防护记录 + 拦截失败）" }
         b.title.text = "导出记录（$scopeLabel）"
         b.subtitle.text = "在筛选后的记录中勾选，生成文本分享给开发者补规则"
@@ -119,7 +126,14 @@ class ObserveExportFragment : Fragment() {
         allEntries = entries.sortedByDescending { it.time }
         // id 在排序后重排，保证稳定且 selected 初始化为全选
         allEntries = allEntries.mapIndexed { idx, e -> e.copy(id = idx) }
-        selected.addAll(allEntries.map { it.id })
+        // 勾选持久化：恢复上次未导出的勾选；无存档或存档全部失效则默认全选
+        val savedSel = prefs.getStringSet("selected_$scope", null)
+        val allKeys = allEntries.map { it.key }.toSet()
+        if (savedSel != null && savedSel.any { it in allKeys }) {
+            selected.addAll(savedSel.intersect(allKeys))
+        } else {
+            selected.addAll(allKeys)
+        }
 
         fun label(e: ExportEntry) = label(e.pkg)
 
@@ -137,7 +151,7 @@ class ObserveExportFragment : Fragment() {
             val check = CheckBox(requireContext())
             row.root.addView(check, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             appChecks[pkg] = check
-            val ids = list.map { it.id }.toMutableList()
+            val ids = list.map { it.key }.toMutableList()
             appEntryIds[pkg] = ids
             check.setOnCheckedChangeListener { _, isChecked ->
                 if (suppress) return@setOnCheckedChangeListener
@@ -182,7 +196,7 @@ class ObserveExportFragment : Fragment() {
             row.status.isVisible = false // item 布局默认文案「待接入」对时间范围行无意义
             val check = CheckBox(requireContext())
             row.root.addView(check, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            val ids = rangeEntries.map { it.id }.toMutableList()
+            val ids = rangeEntries.map { it.key }.toMutableList()
             check.setOnCheckedChangeListener { _, isChecked ->
                 if (suppress) return@setOnCheckedChangeListener
                 if (isChecked) selected.addAll(ids) else selected.removeAll(ids)
@@ -212,7 +226,7 @@ class ObserveExportFragment : Fragment() {
         selectAllBox = b.selectAll
         b.selectAll.setOnCheckedChangeListener { _, checked ->
             if (suppress) return@setOnCheckedChangeListener
-            if (checked) selected.addAll(allEntries.map { it.id }) else selected.clear()
+            if (checked) selected.addAll(allEntries.map { it.key }) else selected.clear()
             refreshChecks()
         }
         refreshChecks()
@@ -243,14 +257,19 @@ class ObserveExportFragment : Fragment() {
         item.root.setOnClickListener { check.toggle() }
         check.setOnCheckedChangeListener { _, isChecked ->
             if (suppress) return@setOnCheckedChangeListener
-            if (isChecked) selected.add(e.id) else selected.remove(e.id)
+            if (isChecked) selected.add(e.key) else selected.remove(e.key)
             refreshChecks()
         }
-        entryChecks.getOrPut(e.id) { mutableListOf() }.add(check)
+        entryChecks.getOrPut(e.key) { mutableListOf() }.add(check)
         // 勾选框放行尾，与应用行勾选框同列对齐（行内垂直居中）
         row.addView(item.root, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         row.addView(check)
         return row
+    }
+
+    /** 勾选持久化：进程被杀/页面重建后恢复用户的选择（导出成功后清除）。 */
+    private fun persistSelection(prefs: android.content.SharedPreferences) {
+        prefs.edit().putStringSet("selected_" + scopeInt, selected).apply()
     }
 
     /** 依 selected 集合统一校准全部 checkbox（明细 + 应用 + 时间 + 全选）。 */
@@ -259,14 +278,15 @@ class ObserveExportFragment : Fragment() {
         for ((id, checks) in entryChecks) for (c in checks) c.isChecked = id in selected
         for ((pkg, cb) in appChecks) cb.isChecked = appEntryIds[pkg].orEmpty().all { it in selected }
         for ((cb, ids) in timeChecks) cb.isChecked = ids.all { it in selected }
-        selectAllBox?.isChecked = allEntries.all { it.id in selected }
+        selectAllBox?.isChecked = allEntries.all { it.key in selected }
+        prefsRef?.let { persistSelection(it) }
         suppress = false
     }
 
     private fun doExport(prefs: android.content.SharedPreferences) {
         val scope = arguments?.getInt("scope", 0) ?: 0
         val scopeLabel = when (scope) { 1 -> "仅防护记录"; 2 -> "仅拦截失败记录"; else -> "全部（防护记录 + 拦截失败）" }
-        val chosen = allEntries.filter { it.id in selected }
+        val chosen = allEntries.filter { it.key in selected }
         val recs = chosen.mapNotNull { it.cleaner }
         val obs = chosen.mapNotNull { it.observation }
         if (recs.isEmpty() && obs.isEmpty()) {
@@ -305,7 +325,7 @@ class ObserveExportFragment : Fragment() {
         }
         val send = Intent(Intent.ACTION_SEND).setType("text/plain")
             .putExtra(Intent.EXTRA_TEXT, text).putExtra(Intent.EXTRA_TITLE, "轻护记录导出")
-        prefs.edit().putLong("lastExportAtMs", java.lang.System.currentTimeMillis()).apply()
+        prefs.edit().remove("selected_" + scopeInt).putLong("lastExportAtMs", java.lang.System.currentTimeMillis()).apply()
         startActivity(Intent.createChooser(send, "导出记录"))
     }
 

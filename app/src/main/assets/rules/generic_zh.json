@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "qinghu.builtin.generic.zh",
-  "version": 16,
+  "version": 17,
   "provenance": {
     "author": "Qinghu",
     "license": "PROJECT-OWNED",
@@ -1099,6 +1099,70 @@
         "type": "CLICK_VERIFIED_NODE",
         "maxAttempts": 2,
         "cooldownMs": 3000
+      }
+    },
+    {
+      "id": "generic.splash.skip_h5",
+      "version": 1,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "user-observation-log-2026-09-21"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textEquals": "跳过",
+        "windowTextContainsAny": [
+          "互动广告",
+          "已Wi-Fi预加载"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 2000
+      }
+    },
+    {
+      "id": "generic.splash.skip_h5_countdown",
+      "version": 1,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "user-observation-log-2026-09-21"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textContains": "跳过",
+        "windowTextContainsAny": [
+          "点击跳转至网页",
+          "第三方应用"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 2000
       }
     }
   ]
