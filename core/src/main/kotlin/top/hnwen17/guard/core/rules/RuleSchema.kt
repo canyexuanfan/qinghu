@@ -58,6 +58,10 @@ data class UiRule(
         val windowTextContainsAny: List<String>? = null,
         /** 窗口内需存在任一 viewId 关键词（李跳跳「广告容器出现才点关闭」语义）。 */
         val windowViewIdContainsAny: List<String>? = null,
+        /** 祖先链上任一 viewId 短名需含任一标记（节点级广告容器证据）。
+         *  窗口级文本证据（windowTextContainsAny）无法区分同窗口内的正/负例——
+         *  教程「跳过」与广告「跳过」同窗时，只有「挂在广告容器下」才是可判别信号。 */
+        val ancestorViewIdContainsAny: List<String>? = null,
         /** QH-P18 兄弟轴（GKD childCount 等价）：子节点数上限。 */
         val childCountMax: Int? = null,
         /** 子节点数精确匹配。 */

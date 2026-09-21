@@ -78,7 +78,7 @@ object RuleMatcher {
                 ctx.textBlob?.let { b -> rule.match.windowTextContainsAny!!.any { b.contains(it.lowercase()) } } != true) continue
             if (rule.match.windowViewIdContainsAny != null &&
                 ctx.viewIdBlob?.let { b -> rule.match.windowViewIdContainsAny!!.any { b.contains(it.lowercase()) } } != true) continue
-            val node = findNode(snapshot.root, rule.match, 0, null, ctx) ?: continue
+            val node = findNode(snapshot.root, rule.match, 0, emptyList(), ctx) ?: continue
             val capability = when (rule.action.type) {
                 UiRule.RuleAction.ActionType.CLICK_VERIFIED_NODE -> Capability.CLEANER
                 UiRule.RuleAction.ActionType.RECORD_ONLY -> Capability.CLEANER
@@ -117,15 +117,16 @@ object RuleMatcher {
         }
     }
 
-    /** 深度受限先序查找第一个满足条件的节点（携带父引用供 parentViewId/兄弟轴判定）。 */
+    /** 深度受限先序查找第一个满足条件的节点（携带祖先链供 parentViewId/兄弟轴/广告容器证据判定）。 */
     private fun findNode(
         node: SnapshotNode, cond: UiRule.MatchCondition, depth: Int,
-        parent: SnapshotNode?, ctx: WindowCtx, childIndex: Int = 0, siblingCount: Int = 1
+        ancestors: List<SnapshotNode>, ctx: WindowCtx, childIndex: Int = 0, siblingCount: Int = 1
     ): SnapshotNode? {
         if (depth > cond.maxDepth) return null
-        if (matches(node, cond, parent, ctx, childIndex, siblingCount)) return node
+        if (matches(node, cond, ancestors, ctx, childIndex, siblingCount)) return node
+        val next = ancestors + node
         for ((i, child) in node.children.withIndex()) {
-            findNode(child, cond, depth + 1, node, ctx, i, node.children.size)?.let { return it }
+            findNode(child, cond, depth + 1, next, ctx, i, node.children.size)?.let { return it }
         }
         return null
     }
@@ -139,9 +140,10 @@ object RuleMatcher {
     }
 
     private fun matches(
-        node: SnapshotNode, cond: UiRule.MatchCondition, parent: SnapshotNode? = null,
+        node: SnapshotNode, cond: UiRule.MatchCondition, ancestors: List<SnapshotNode> = emptyList(),
         ctx: WindowCtx? = null, childIndex: Int = 0, siblingCount: Int = 1
     ): Boolean {
+        val parent = ancestors.lastOrNull()
         // 便宜字段先判（短路失败）；viewId 统一按资源短名比较（Android 上报为 pkg:id/name）
         if (cond.viewId != null && node.viewId?.substringAfterLast('/') != cond.viewId) return false
         // QH-P18：viewId 短名包含匹配（大小写不敏感；GKD 通用规则 vid~=.*skip.* 的等价落地）
@@ -180,6 +182,15 @@ object RuleMatcher {
         if (cond.parentViewId != null) {
             if (parent == null) return false
             if (parent.viewId?.substringAfterLast('/') != cond.parentViewId) return false
+        }
+        // 节点级广告容器证据：祖先链上任一 id 短名含标记才放行。
+        // 窗口级文本证据无法区分同窗正/负例（教程「跳过」与广告「跳过」同窗），祖先容器才是结构信号。
+        if (cond.ancestorViewIdContainsAny != null) {
+            val needles = cond.ancestorViewIdContainsAny.map { it.lowercase() }
+            val hit = ancestors.any { a ->
+                a.viewId?.let { id -> val sh = id.substringAfterLast('/').lowercase(); needles.any { sh.contains(it) } } == true
+            }
+            if (!hit) return false
         }
         // 文本比较：空值语义确定——规则要求文本而节点无文本 → 不匹配
         if (cond.textEquals != null && node.text != cond.textEquals) return false

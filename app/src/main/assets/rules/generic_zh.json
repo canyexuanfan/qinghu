@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "qinghu.builtin.generic.zh",
-  "version": 15,
+  "version": 16,
   "provenance": {
     "author": "Qinghu",
     "license": "PROJECT-OWNED",
@@ -10,7 +10,7 @@
   "rules": [
     {
       "id": "generic.splash.skip",
-      "version": 4,
+      "version": 5,
       "provenance": {
         "author": "Qinghu",
         "license": "PROJECT-OWNED",
@@ -32,6 +32,18 @@
         "textEquals": "跳过",
         "windowTextContainsAny": [
           "广告"
+        ],
+        "ancestorViewIdContainsAny": [
+          "ad_",
+          "_ad",
+          "adview",
+          "advert",
+          "splashad",
+          "ksad",
+          "gdtad",
+          "sigmob",
+          "mbridge",
+          "mobads"
         ]
       },
       "action": {
@@ -73,7 +85,7 @@
     },
     {
       "id": "generic.splash.skip_broad",
-      "version": 5,
+      "version": 6,
       "provenance": {
         "author": "Qinghu",
         "license": "PROJECT-OWNED",
@@ -94,6 +106,18 @@
         "textContains": "跳过",
         "windowTextContainsAny": [
           "广告"
+        ],
+        "ancestorViewIdContainsAny": [
+          "ad_",
+          "_ad",
+          "adview",
+          "advert",
+          "splashad",
+          "ksad",
+          "gdtad",
+          "sigmob",
+          "mbridge",
+          "mobads"
         ]
       },
       "action": {
@@ -104,7 +128,7 @@
     },
     {
       "id": "generic.splash.skip_en",
-      "version": 4,
+      "version": 5,
       "provenance": {
         "author": "Qinghu",
         "license": "PROJECT-OWNED",
@@ -125,6 +149,18 @@
         "textEquals": "Skip",
         "windowTextContainsAny": [
           "广告"
+        ],
+        "ancestorViewIdContainsAny": [
+          "ad_",
+          "_ad",
+          "adview",
+          "advert",
+          "splashad",
+          "ksad",
+          "gdtad",
+          "sigmob",
+          "mbridge",
+          "mobads"
         ]
       },
       "action": {

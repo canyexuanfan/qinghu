@@ -337,7 +337,9 @@ class RuleRuntime(
             val ledger = sessionStateFor(event.session.epoch)
             // 优先级序遍历：第一可执行（CLICK类、冷却通过、页面约束满足）即执行
             // QH-P18 全局点击限流：10 秒内最多 3 次（跨规则），防「反复操作屏幕致失去控制」
-            if (!clickAllowed()) { logAction("rate limited: too many clicks in 10s window"); return null }
+            // 重试点击不受全局限流约束：重试本身已由 retryCount≤2 封顶，
+            // 若被限流吞掉，重试机制形同虚设（MuMu 实测：retry attempt 1 紧跟 rate limited）
+            if (retryCount == 0 && !clickAllowed()) { logAction("rate limited: too many clicks in 10s window"); return null }
             for (rule in RulePriority.sortedForExecution(matches.map { it.rule })) {
                 if (rule.action.type != UiRule.RuleAction.ActionType.CLICK_VERIFIED_NODE) continue // RECORD_ONLY 走观察通道
                 if (RuleValidator.isExpired(rule, nowEpochMs = clock.nowMs())) continue
