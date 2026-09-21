@@ -1,7 +1,6 @@
 package top.hnwen17.guard.ui
 
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -14,8 +13,13 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import top.hnwen17.guard.R
+import top.hnwen17.guard.core.Availability
+import top.hnwen17.guard.core.Capability
+import top.hnwen17.guard.core.Outcome
+import top.hnwen17.guard.core.ProtectionRecord
 import top.hnwen17.guard.databinding.FragmentObserveExportBinding
 import top.hnwen17.guard.databinding.ItemAppBinding
+import top.hnwen17.guard.databinding.ItemRecordBinding
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.ZoneId
@@ -23,22 +27,35 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * 导出页：按应用/按时间展开折叠查看具体记录，每条含开关状态和规则信息。
+ * 导出页：按应用/按时间展开折叠查看具体记录。
+ * 明细行与记录页同款样式（item_record），每条记录可勾选；导出内容 = 勾选的记录。
+ * 全选 / 应用行 / 时间范围行复选框为其下记录的批量勾选入口。
  */
 class ObserveExportFragment : Fragment() {
 
     private var _b: FragmentObserveExportBinding? = null
     private val b get() = _b!!
-    private val appChecks = mutableMapOf<String, CheckBox>()
     private val expandedApps = mutableSetOf<String>()
-    private val timeChecks = mutableListOf<Pair<CheckBox, Long>>()
     private var lastExportAtMs = 0L
     private var allEntries = listOf<ExportEntry>()
 
-    data class ExportEntry(
-        val time: Long, val pkg: String, val appName: String,
-        val kind: String, val action: String, val detail: String,
-        val switchState: String = "" // "内置开" / "订阅开" / "全关" 等
+    /** 记录级勾选状态（entry id 集合），导出的最终事实。 */
+    private val selected = mutableSetOf<Int>()
+
+    /** 同一 entry 在按应用/按时间两个列表各有一个 checkbox，统一刷新。 */
+    private val entryChecks = mutableMapOf<Int, MutableList<CheckBox>>()
+    private val appChecks = linkedMapOf<String, CheckBox>()
+    private val appEntryIds = linkedMapOf<String, MutableList<Int>>()
+    private val timeChecks = mutableListOf<Pair<CheckBox, MutableList<Int>>>()
+    private var selectAllBox: CheckBox? = null
+
+    /** 程序化 setChecked 时置位，避免联动 listener 级联触发。 */
+    private var suppress = false
+
+    private data class ExportEntry(
+        val id: Int, val time: Long, val pkg: String,
+        val record: ProtectionRecord?,
+        val observation: top.hnwen17.guard.data.records.ObserveStore.Observation?
     )
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -66,63 +83,70 @@ class ObserveExportFragment : Fragment() {
         b.tabByTime.setOnClickListener { selectTab(false) }
         selectTab(true)
 
+        // 数据源：防护记录 + 观察日志，统一 entry id
+        fun label(pkg: String) = try { pm.getApplicationInfo(pkg, 0).loadLabel(pm).toString() } catch (_: Exception) { pkg }
         val entries = mutableListOf<ExportEntry>()
         for (r in app.recordStore.all.value) {
-            val lbl = try { pm.getApplicationInfo(r.packageName, 0).loadLabel(pm).toString() } catch (_: Exception) { r.packageName }
-            val act = when (r.outcome.name) { "VERIFIED" -> "已关闭广告"; "FAILED" -> "拦截失败"; else -> r.outcome.name }
-            entries.add(ExportEntry(r.atEpochMs, r.packageName, lbl, "防护", act, "规则 ${r.ruleId} v${r.ruleVersion} · ${r.capability}"))
+            // CleanerRecord → ProtectionRecord 展示映射：明细复用记录页同款渲染
+            val cap = try { Capability.valueOf(r.capability) } catch (_: Exception) { Capability.CLEANER }
+            val outcome = when (r.outcome.name) {
+                "VERIFIED" -> Outcome.CLOSED
+                "EXECUTED" -> Outcome.SENSOR_APPLIED
+                "FAILED" -> Outcome.OBSERVED
+                "START_REJECTED" -> Outcome.START_REJECTED
+                else -> Outcome.CLOSED
+            }
+            val pr = ProtectionRecord(
+                id = 0, appId = r.packageName, appName = label(r.packageName), capability = cap,
+                timestamp = r.atEpochMs, outcome = outcome,
+                detail = "规则 ${r.ruleId} v${r.ruleVersion} · ${r.capability}", sample = false
+            )
+            entries.add(ExportEntry(entries.size, r.atEpochMs, r.packageName, pr, null))
         }
         for (o in app.observeStore.all.value) {
-            val lbl = try { pm.getApplicationInfo(o.packageName, 0).loadLabel(pm).toString() } catch (_: Exception) { o.packageName }
-            val reason = if (o.reason == "miss") "无可用规则" else "点击未生效"
-            entries.add(ExportEntry(o.atEpochMs, o.packageName, lbl, "未拦截", "未拦截（$reason）", o.className))
+            entries.add(ExportEntry(entries.size, o.atEpochMs, o.packageName, null, o))
         }
         allEntries = entries.sortedByDescending { it.time }
+        // id 在排序后重排，保证稳定且 selected 初始化为全选
+        allEntries = allEntries.mapIndexed { idx, e -> e.copy(id = idx) }
+        selected.addAll(allEntries.map { it.id })
 
+        fun label(e: ExportEntry) = label(e.pkg)
+
+        // 按应用分组
         val grouped = allEntries.groupBy { it.pkg }
         for ((pkg, list) in grouped.entries.sortedByDescending { it.value.size }) {
-            val lbl = try { pm.getApplicationInfo(pkg, 0).loadLabel(pm).toString() } catch (_: Exception) { pkg }
-            val icon = try { pm.getApplicationIcon(pkg) } catch (_: Exception) { null }
             val row = ItemAppBinding.inflate(layoutInflater)
-            row.name.text = lbl; row.status.text = "${list.size} 条"
+            row.name.text = label(list.first())
+            row.status.text = "${list.size} 条"
             val latest = list.maxOfOrNull { it.time } ?: 0L
-            val kinds = list.groupBy { it.kind }.entries.joinToString(" · ") { "${it.key} ${it.value.size}" }
+            val kinds = list.groupBy { if (it.record != null) "防护" else "未拦截" }.entries.joinToString(" · ") { "${it.key} ${it.value.size}" }
             row.description.text = "最近 ${fmt.format(Date(latest))} · $kinds"
             try { row.icon.setImageDrawable(pm.getApplicationIcon(pkg)) } catch (_: Exception) { }
             row.chevron.isVisible = true
-            val check = CheckBox(requireContext()).apply { isChecked = true }
+            val check = CheckBox(requireContext())
             row.root.addView(check, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            check.setOnCheckedChangeListener { _, _ -> syncSelectAll() }
-            b.appList.addView(row.root)
             appChecks[pkg] = check
+            val ids = list.map { it.id }.toMutableList()
+            appEntryIds[pkg] = ids
+            check.setOnCheckedChangeListener { _, isChecked ->
+                if (suppress) return@setOnCheckedChangeListener
+                if (isChecked) selected.addAll(ids) else selected.removeAll(ids)
+                refreshChecks()
+            }
 
             val childContainer = LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.VERTICAL; visibility = View.GONE; setPadding(80, 0, 12, 8)
+                orientation = LinearLayout.VERTICAL; visibility = View.GONE; setPadding(48, 0, 12, 8)
             }
-            for (e in list.sortedByDescending { it.time }) {
-                val cr = LinearLayout(requireContext()).apply {
-                    orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(16, 12, 16, 12)
-                }
-                val tv = TextView(requireContext()).apply {
-                    text = fmt.format(Date(e.time)); textSize = 12f
-                    setTextColor(ContextCompat.getColor(requireContext(), R.color.sub))
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                }
-                val av = TextView(requireContext()).apply {
-                    text = "${e.kind} · ${e.action}"; textSize = 13f
-                    setTextColor(ContextCompat.getColor(requireContext(), R.color.ink))
-                }
-                cr.addView(tv); cr.addView(av)
-                childContainer.addView(cr)
-            }
-            b.appList.addView(childContainer); childContainer.tag = pkg
-            childContainer.isVisible = false
+            for (e in list.sortedByDescending { it.time }) childContainer.addView(entryRow(e))
+            b.appList.addView(childContainer)
             row.root.setOnClickListener {
                 // Set.remove 返回 Boolean（是否原本存在）——误写 != null 恒真导致永不展开
                 val wasExpanded = expandedApps.remove(pkg)
                 if (!wasExpanded) expandedApps.add(pkg)
                 childContainer.isVisible = !wasExpanded
             }
+            b.appList.addView(row.root)
         }
 
         if (grouped.isEmpty()) {
@@ -130,18 +154,15 @@ class ObserveExportFragment : Fragment() {
                 text = "暂无记录——引擎尚未看到疑似广告窗口"; setPadding(0, 40, 0, 0)
             })
         }
-        b.selectAll.setOnCheckedChangeListener { _, checked -> appChecks.values.forEach { it.isChecked = checked } }
 
+        // 按时间分组（各范围均为「起点之后」，允许重叠；同一记录勾选状态互通）
         val ranges = listOf(
             Triple("自上次导出以来", if (lastExportAtMs > 0) "上次导出于 " + fmt.format(Date(lastExportAtMs)) else "暂无上次导出，等同全部", lastExportAtMs),
             Triple("今天", "当日 00:00 起", dayStart),
             Triple("全部", "所有记录", 0L)
         )
-        var checkedTime: CheckBox? = null
-        for ((idx, range) in ranges.withIndex()) {
-            val rangeStart = range.third
-            val rangeEnd = ranges.getOrNull(idx + 1)?.third ?: Long.MAX_VALUE
-            val rangeEntries = allEntries.filter { it.time >= rangeStart && it.time < rangeEnd }
+        for (range in ranges) {
+            val rangeEntries = allEntries.filter { it.time >= range.third }
             val row = ItemAppBinding.inflate(layoutInflater)
             row.name.text = "${range.first}（${rangeEntries.size} 条）"
             row.description.text = range.second
@@ -149,61 +170,109 @@ class ObserveExportFragment : Fragment() {
             row.chevron.isVisible = false
             row.status.isVisible = false // item 布局默认文案「待接入」对时间范围行无意义
             val check = CheckBox(requireContext())
-            check.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) { checkedTime?.let { if (it !== check) it.isChecked = false }; checkedTime = check }
-            }
-            // 初始勾选必须在 listener 就位后设置，否则不会登记进 checkedTime、互斥失效
-            check.isChecked = idx == 0
             row.root.addView(check, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            b.timeList.addView(row.root)
-            timeChecks.add(check to range.third)
+            val ids = rangeEntries.map { it.id }.toMutableList()
+            check.setOnCheckedChangeListener { _, isChecked ->
+                if (suppress) return@setOnCheckedChangeListener
+                if (isChecked) selected.addAll(ids) else selected.removeAll(ids)
+                refreshChecks()
+            }
+            timeChecks.add(check to ids)
+
             val childContainer = LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.VERTICAL; visibility = View.GONE; setPadding(80, 0, 12, 8)
+                orientation = LinearLayout.VERTICAL; visibility = View.GONE; setPadding(48, 0, 12, 8)
             }
-            for (e in rangeEntries.sortedByDescending { it.time }) {
-                val cr = LinearLayout(requireContext()).apply {
-                    orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(16, 12, 16, 12)
-                }
-                val tv = TextView(requireContext()).apply {
-                    text = fmt.format(Date(e.time)); textSize = 12f
-                    setTextColor(ContextCompat.getColor(requireContext(), R.color.sub))
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                }
-                val av = TextView(requireContext()).apply {
-                    text = "${e.appName} ${e.action}"; textSize = 13f
-                    setTextColor(ContextCompat.getColor(requireContext(), R.color.ink))
-                }
-                cr.addView(tv); cr.addView(av)
-                childContainer.addView(cr)
-            }
-            b.timeList.addView(childContainer)
+            for (e in rangeEntries.sortedByDescending { it.time }) childContainer.addView(entryRow(e))
             row.root.setOnClickListener {
                 childContainer.visibility = if (childContainer.visibility == View.GONE) View.VISIBLE else View.GONE
             }
+            b.timeList.addView(row.root)
+            b.timeList.addView(childContainer)
         }
 
-        b.exportBtn.setOnClickListener { doExport(app, prefs) }
+        // 全选：所有记录的批量勾选入口
+        selectAllBox = b.selectAll
+        b.selectAll.setOnCheckedChangeListener { _, checked ->
+            if (suppress) return@setOnCheckedChangeListener
+            if (checked) selected.addAll(allEntries.map { it.id }) else selected.clear()
+            refreshChecks()
+        }
+        refreshChecks()
+
+        b.exportBtn.setOnClickListener { doExport(prefs) }
     }
 
-    private fun syncSelectAll() { b.selectAll.isChecked = appChecks.values.all { it.isChecked } }
+    /** 记录页同款明细行 + 前置勾选框。 */
+    private fun entryRow(e: ExportEntry): View {
+        val row = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL
+        }
+        val check = CheckBox(requireContext())
+        val item = ItemRecordBinding.inflate(layoutInflater)
+        if (e.record != null) {
+            showRecord(item, e.record) // 与记录页完全一致的标题/状态/图标/描述
+        } else {
+            val o = e.observation
+            val appName = try {
+                requireContext().packageManager.getApplicationInfo(e.pkg, 0).loadLabel(requireContext().packageManager).toString()
+            } catch (_: Exception) { e.pkg }
+            item.time.text = SimpleDateFormat("HH:mm", Locale.US).format(Date(e.time))
+            item.icon.capability(Capability.CLEANER)
+            item.title.text = "未拦截"
+            item.status.badge(Availability.LIMITED, "未拦截")
+            item.description.text = "$appName ${o?.className.orEmpty()}（${if (o?.reason == "miss") "无可用规则" else "点击未生效"}）"
+        }
+        item.root.setOnClickListener { check.toggle() }
+        check.setOnCheckedChangeListener { _, isChecked ->
+            if (suppress) return@setOnCheckedChangeListener
+            if (isChecked) selected.add(e.id) else selected.remove(e.id)
+            refreshChecks()
+        }
+        entryChecks.getOrPut(e.id) { mutableListOf() }.add(check)
+        row.addView(check)
+        row.addView(item.root, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        return row
+    }
 
-    private fun doExport(app: top.hnwen17.guard.GuardApplication, prefs: android.content.SharedPreferences) {
-        val since = if (b.appListScroll.isVisible) 0L else timeChecks.firstOrNull { it.first.isChecked }?.second ?: 0L
-        val inRange: (Long) -> Boolean = { since <= 0L || it >= since }
-        val chosenPkgs = appChecks.filterValues { it.isChecked }.keys
-        val byPkg: (String) -> Boolean = { b.timeListScroll.isVisible || it in chosenPkgs }
-        val selected = allEntries.filter { inRange(it.time) && byPkg(it.pkg) }
-        if (selected.isEmpty()) {
+    /** 依 selected 集合统一校准全部 checkbox（明细 + 应用 + 时间 + 全选）。 */
+    private fun refreshChecks() {
+        suppress = true
+        for ((id, checks) in entryChecks) for (c in checks) c.isChecked = id in selected
+        for ((pkg, cb) in appChecks) cb.isChecked = appEntryIds[pkg].orEmpty().all { it in selected }
+        for ((cb, ids) in timeChecks) cb.isChecked = ids.all { it in selected }
+        selectAllBox?.isChecked = allEntries.all { it.id in selected }
+        suppress = false
+    }
+
+    private fun doExport(prefs: android.content.SharedPreferences) {
+        val chosen = allEntries.filter { it.id in selected }
+        if (chosen.isEmpty()) {
             android.app.AlertDialog.Builder(requireContext()).setTitle("没有可选记录")
                 .setMessage("所选范围内暂无记录。").setPositiveButton("知道了", null).show()
             return
         }
+        val pm = requireContext().packageManager
+        fun label(pkg: String) = try { pm.getApplicationInfo(pkg, 0).loadLabel(pm).toString() } catch (_: Exception) { pkg }
         val text = buildString {
-            append("轻护记录导出 v${top.hnwen17.guard.BuildConfig.VERSION_NAME}（本机生成，仅供规则适配；共 ${selected.size} 条）\n")
+            append("轻护记录导出 v${top.hnwen17.guard.BuildConfig.VERSION_NAME}（本机生成，仅供规则适配；共 ${chosen.size} 条）\n")
             val fmt = SimpleDateFormat("MM-dd HH:mm:ss", Locale.US)
-            for (e in selected) {
-                append("\n[${fmt.format(Date(e.time))}] ${e.pkg} ${e.kind} ${e.action}")
-                if (e.detail.isNotEmpty()) append("\n  detail: ${e.detail}")
+            for (e in chosen) {
+                val date = fmt.format(Date(e.time))
+                if (e.record != null) {
+                    val title = when (e.record.capability) {
+                        Capability.CLEANER -> if (e.record.outcome == Outcome.OBSERVED) "拦截失败" else "已关闭广告"
+                        Capability.TOUCH -> "防止广告误触"
+                        Capability.SENSOR -> "防止摇一摇广告"
+                        Capability.JUMP -> "阻止异常跳转"
+                    }
+                    append("\n[$date] ${e.pkg} 防护 $title（${label(e.pkg)}）")
+                    append("\n  detail: ${e.record.detail}")
+                } else {
+                    val o = e.observation
+                    val reason = if (o?.reason == "miss") "无可用规则" else "点击未生效"
+                    append("\n[$date] ${e.pkg} 未拦截 未拦截（$reason）（${label(e.pkg)}）")
+                    append("\n  detail: ${o?.className.orEmpty()}")
+                }
             }
         }
         val send = Intent(Intent.ACTION_SEND).setType("text/plain")
