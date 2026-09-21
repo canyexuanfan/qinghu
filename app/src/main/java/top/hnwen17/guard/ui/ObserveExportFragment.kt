@@ -60,8 +60,9 @@ class ObserveExportFragment : Fragment() {
         val display: ProtectionRecord? = null,
         val observation: top.hnwen17.guard.data.records.ObserveStore.Observation? = null
     ) {
-        /** 跨进程重建稳定的唯一键（时间+包名+类型），用于勾选持久化。 */
-        val key: String get() = "$time|$pkg|${if (cleaner != null) "p" else "o"}"
+        /** 跨进程重建稳定的唯一键（时间+包名+类型+序号），用于勾选持久化。
+         *  同秒同包同类型的记录（一次开屏触发多条规则）以序号区分，否则勾选联动错乱。 */
+        val key: String get() = "$time|$pkg|${if (cleaner != null) "p" else "o"}#$id"
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -269,7 +270,8 @@ class ObserveExportFragment : Fragment() {
 
     /** 勾选持久化：进程被杀/页面重建后恢复用户的选择（导出成功后清除）。 */
     private fun persistSelection(prefs: android.content.SharedPreferences) {
-        prefs.edit().putStringSet("selected_" + scopeInt, selected).apply()
+        // 必须存副本：存引用时 framework 以 equals 判定"未变化"跳过写盘，持久化失效
+        prefs.edit().putStringSet("selected_" + scopeInt, HashSet(selected)).apply()
     }
 
     /** 依 selected 集合统一校准全部 checkbox（明细 + 应用 + 时间 + 全选）。 */

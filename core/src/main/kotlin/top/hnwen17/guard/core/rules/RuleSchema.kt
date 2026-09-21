@@ -56,6 +56,9 @@ data class UiRule(
         val textEmpty: Boolean? = null,
         /** 窗口内需存在任一广告文案（结构规则的上下文闸门，防无差别点击图标）。 */
         val windowTextContainsAny: List<String>? = null,
+        /** 窗口内需存在全文（trim 后）等于任一值的节点（如规范要求的独立「广告」标签；
+         *  与 windowTextContainsAny 的子串匹配不同，不受长句中偶现字样干扰）。 */
+        val windowTextEqualsAny: List<String>? = null,
         /** 窗口内需存在任一 viewId 关键词（李跳跳「广告容器出现才点关闭」语义）。 */
         val windowViewIdContainsAny: List<String>? = null,
         /** 祖先链上任一 viewId 短名需含任一标记（节点级广告容器证据）。

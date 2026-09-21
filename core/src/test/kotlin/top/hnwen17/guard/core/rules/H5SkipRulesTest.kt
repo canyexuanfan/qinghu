@@ -66,6 +66,41 @@ class H5SkipRulesTest {
         assertEquals("generic.splash.skip_h5_countdown", matches[0].rule.id)
     }
 
+    private val skipAdLabel = """
+{"id": "generic.splash.skip_ad_label", "version": 1,
+ "provenance": {"author": "Qinghu", "license": "PROJECT-OWNED", "source": "test"},
+ "target": {"package": "*", "minVersionCode": 0, "maxVersionCode": 999999},
+ "match": {"textEquals": "跳过", "windowTextEqualsAny": ["广告"]},
+ "action": {"type": "CLICK_VERIFIED_NODE", "maxAttempts": 2, "cooldownMs": 2000}}
+""".trimIndent()
+
+    @Test
+    fun `独立广告标签变体：跳过+全文等于广告命中`() {
+        val rules = load(skipH5, skipAdLabel)
+        // 真机样本（17:24:02）：窗口文本节点为独立的「广告」（非「互动广告」长句）
+        val window = node(null, children = listOf(
+            node(null, text = "广告"),
+            node(null, text = "跳过", clickable = true),
+            node(null, text = "仙逆H5")
+        ))
+        val matches = RuleMatcher.findMatches(rules.map { RuleIndex.IndexedRule(it, "p") }, WindowSnapshot("com.tencent.qqlive", 1, window))
+        assertEquals(1, matches.size)
+        assertEquals("generic.splash.skip_ad_label", matches[0].rule.id)
+    }
+
+    @Test
+    fun `教程负例：含假广告字样长句不得触发独立标签规则`() {
+        val rules = load(skipH5, skipAdLabel)
+        // 探针 NEG-001 同构：教程窗口含「假广告fixture」子串但无全文等于「广告」的节点
+        val window = node(null, children = listOf(
+            node(null, text = "探针A · 假广告fixture（正例）"),
+            node(null, text = "广告 3 秒后可跳过"),
+            node("tutorial_skip", text = "跳过", clickable = true)
+        ))
+        val matches = RuleMatcher.findMatches(rules.map { RuleIndex.IndexedRule(it, "p") }, WindowSnapshot("top.hnwen17.guard.probe.a", 1, window))
+        assertTrue(matches.isEmpty(), "长句中的广告字样不构成独立广告标签")
+    }
+
     @Test
     fun `教程负例：跳过但窗口无强广告标记不得命中`() {
         val rules = load(skipH5, skipH5Countdown)

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "qinghu.builtin.generic.zh",
-  "version": 17,
+  "version": 18,
   "provenance": {
     "author": "Qinghu",
     "license": "PROJECT-OWNED",
@@ -1157,6 +1157,37 @@
         "windowTextContainsAny": [
           "点击跳转至网页",
           "第三方应用"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 2000
+      }
+    },
+    {
+      "id": "generic.splash.skip_ad_label",
+      "version": 1,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "user-observation-log-2026-09-21b"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textEquals": "跳过",
+        "windowTextEqualsAny": [
+          "广告"
         ]
       },
       "action": {
