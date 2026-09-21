@@ -82,7 +82,11 @@ class ObserveExportFragment : Fragment() {
         scopeInt = scope
         val scopeLabel = when (scope) { 1 -> "仅防护记录"; 2 -> "仅拦截失败记录"; else -> "全部（防护记录 + 拦截失败）" }
         b.title.text = "导出记录（$scopeLabel）"
-        b.subtitle.text = "在筛选后的记录中勾选，生成文本分享给开发者补规则"
+        var restoredCount = 0
+        b.subtitle.text = if (restoredCount in 1 until allEntries.size)
+            "已恢复上次未导出的勾选（$restoredCount 条）；点「全选」可重新全选，生成文本分享给开发者补规则"
+        else
+            "在筛选后的记录中勾选，生成文本分享给开发者补规则"
         b.back.setOnClickListener { parentFragmentManager.popBackStack() }
         fun selectTab(byApp: Boolean) {
             listOf(b.tabByApp to byApp, b.tabByTime to !byApp).forEach { (tab, sel) ->
@@ -127,11 +131,12 @@ class ObserveExportFragment : Fragment() {
         allEntries = entries.sortedByDescending { it.time }
         // id 在排序后重排，保证稳定且 selected 初始化为全选
         allEntries = allEntries.mapIndexed { idx, e -> e.copy(id = idx) }
-        // 勾选持久化：恢复上次未导出的勾选；无存档或存档全部失效则默认全选
+        // 勾选持久化：仅用于进程意外被杀后的页面重建恢复（主动进入时入口已清空存档）
         val savedSel = prefs.getStringSet("selected_$scope", null)
         val allKeys = allEntries.map { it.key }.toSet()
         if (savedSel != null && savedSel.any { it in allKeys }) {
             selected.addAll(savedSel.intersect(allKeys))
+            restoredCount = selected.size
         } else {
             selected.addAll(allKeys)
         }

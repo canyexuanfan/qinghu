@@ -231,6 +231,10 @@ class SettingsFragment : BoundFragment<FragmentSettingsBinding>(FragmentSettings
                         .setNegativeButton("取消", null).show()
                     2 -> AlertDialog.Builder(requireContext()).setTitle("导出内容")
                         .setItems(arrayOf("全部（防护记录 + 拦截失败）", "仅防护记录（已关闭/已保护）", "仅拦截失败记录")) { _, which ->
+                            // 主动进入导出流程 = 勾选从全选开始：清除上次会话遗留的持久化勾选
+                            // （持久化恢复仅服务于进程意外被杀后的页面重建，见 ObserveExportFragment）
+                            requireContext().getSharedPreferences("observe_export", android.content.Context.MODE_PRIVATE)
+                                .edit().remove("selected_" + which).apply()
                             val frag = ObserveExportFragment().apply {
                                 arguments = android.os.Bundle().apply { putInt("scope", which) }
                             }
