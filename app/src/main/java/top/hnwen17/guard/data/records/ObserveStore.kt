@@ -38,7 +38,7 @@ class ObserveStore {
         packageName: String, className: String, reason: String,
         atEpochMs: Long, samples: List<String>
     ): Boolean {
-        val key = "$packageName|$reason" // 窗口类名不参与去重：同一广告的多个视图层事件只记一条
+        val key = "$packageName|$reason|" + className.take(96) // 类名参与去重：不同广告窗体各自留痕（连续测试不再被吞）
         val last = seenRecently[key]
         if (last != null && atEpochMs - last < DEDUP_WINDOW_MS) return false
         seenRecently[key] = atEpochMs

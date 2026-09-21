@@ -38,6 +38,10 @@ class RecordStore {
     private val _all = MutableStateFlow<List<CleanerRecord>>(emptyList())
     val all: StateFlow<List<CleanerRecord>> = _all.asStateFlow()
 
+    /** 同步落盘钩子（GuardApplication 注入）：collect 协程异步写盘会被后台冻结/进程死亡截断，
+     *  真机实测丢最近记录（09-21 17:23-17:24 三条），执行线程即时写盘才可靠。 */
+    var persistHook: (() -> Unit)? = null
+
     @Synchronized
     fun record(
         ruleId: String, ruleVersion: Int, packageName: String,
@@ -73,6 +77,7 @@ class RecordStore {
             CleanerRecord(ruleId, ruleVersion, packageName, windowEpoch, outcome, atEpochMs, capability)
         )
         _all.value = records.toList()
+        try { persistHook?.invoke() } catch (_: Exception) { } // 落盘失败不影响内存记录
     }
 
     fun verifiedTodayCount(nowDayMs: Long): Int = _all.value.count {

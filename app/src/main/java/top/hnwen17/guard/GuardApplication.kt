@@ -30,6 +30,7 @@ class GuardApplication : Application() {
         top.hnwen17.guard.platform.shizuku.ShizukuBridge.attach(this) // QH-P05-07/08
         // QH-P08-07：防护记录持久化（启动恢复+变更落盘，应用私有目录）
         top.hnwen17.guard.data.records.RecordStore.load(this, recordStore)
+        recordStore.persistHook = { top.hnwen17.guard.data.records.RecordStore.save(this, recordStore) }
         appScope.launch {
             recordStore.all.collect {
                 top.hnwen17.guard.data.records.RecordStore.save(this@GuardApplication, recordStore)

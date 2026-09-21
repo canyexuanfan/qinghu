@@ -385,7 +385,7 @@ class RuleRuntime(
                         collect(root)
                     }.joinToString("|")
                 }
-                schedulePostcondition(event.session, rule, rootProvider, ledger, marker, retryCount, preFingerprint)
+                schedulePostcondition(event, event.session, rule, rootProvider, ledger, marker, retryCount, preFingerprint)
                 return done
             }
             return null
@@ -498,6 +498,7 @@ class RuleRuntime(
 
     /** 后验：延迟检查 absentViewId 是否消失；VERIFIED 只在有证据时记。 */
     private fun schedulePostcondition(
+        event: top.hnwen17.guard.core.engine.GuardEvent,
         session: top.hnwen17.guard.core.session.WindowSession,
         rule: UiRule,
         rootProvider: () -> AccessibilityNodeInfo?,
@@ -515,26 +516,27 @@ class RuleRuntime(
             val absent = rule.postcondition?.absentViewId?.let { vid ->
                 NodeSnapshotReader.containsViewId(root, vid)?.let { !it }
             } ?: run {
-                // QH-P20 内容指纹后验：比较点击前后窗口内容指纹是否变化。
-                // 指纹变了 → 窗口内容确实变了（广告被关掉或替换）→ VERIFIED
-                // 指纹没变 → 点击无效 → FAILED
-                // null（窗口不可用）保持 EXECUTED 不冒充
-                if (preFingerprint.isNotBlank() && root != null) {
+                // 无显式 postcondition 的通用后验：重新匹配同一规则。
+                // 命中节点仍在原地（如 H5「跳过」按钮未消失）= 点击未生效 → FAILED；
+                // 规则不再命中（广告容器/按钮随点击消失或页面切换）→ VERIFIED。
+                // 旧指纹方案弃用：H5 广告页内容动态（倒计时/轮播），指纹 800ms 后必变，
+                // 真机实测导致「实际未关闭却 VERIFIED」误判（09-21 17:58:13）。
+                if (root != null) {
                     val live = NodeSnapshotReader.snapshotLive(root)
                     if (live != null) {
                         try {
-                            val postFp = live.rootSnapshot.let { r ->
-                                buildList {
-                                    fun collect(n: top.hnwen17.guard.core.rules.SnapshotNode) {
-                                        if (size >= 5) return
-                                        n.text?.takeIf { it.isNotBlank() }?.let { add(it) }
-                                        if (size >= 5) return
-                                        n.children.forEach { collect(it) }
-                                    }
-                                    collect(r)
-                                }.joinToString("|")
-                            }
-                            preFingerprint != postFp
+                            val idxNow = index
+                            if (idxNow == null || !SnapshotNode.isWithinBudget(live.rootSnapshot)) return@run null
+                            val wc = event as? top.hnwen17.guard.core.engine.GuardEvent.WindowChanged
+                            val activityId = wc?.session?.classNameHint
+                            val confirmed = wc != null
+                            val windowSnapshot = top.hnwen17.guard.core.rules.WindowSnapshot(
+                                session.packageName, 1L, live.rootSnapshot,
+                                activityId = activityId, activityConfirmed = confirmed)
+                            val candidates = idxNow.candidatesFor(session.packageName, 1, activityId, confirmed)
+                            val stillHit = RuleMatcher.findMatches(candidates, windowSnapshot)
+                                .any { m -> m.rule.id == rule.id && RulePriority.sortedForExecution(listOf(m.rule)).isNotEmpty() }
+                            !stillHit // 仍命中 → 点击无效(false=absent false) → FAILED；不再命中 → VERIFIED
                         } finally { live.recycleAll() }
                     } else null
                 } else null
