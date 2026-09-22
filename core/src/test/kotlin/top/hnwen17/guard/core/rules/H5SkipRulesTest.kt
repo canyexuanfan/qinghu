@@ -39,6 +39,15 @@ class H5SkipRulesTest {
  "action": {"type": "CLICK_VERIFIED_NODE", "maxAttempts": 2, "cooldownMs": 2000}}
 """.trimIndent()
 
+    private val skipNumeric = """
+{"id": "generic.splash.skip_numeric", "version": 1,
+ "provenance": {"author": "Qinghu", "license": "PROJECT-OWNED", "source": "test"},
+ "target": {"package": "*", "minVersionCode": 0, "maxVersionCode": 999999},
+ "match": {"textEquals": "跳过", "windowHasNumericText": true},
+ "postcondition": {"absentTextEquals": "跳过", "timeoutMs": 1000},
+ "action": {"type": "CLICK_VERIFIED_NODE", "maxAttempts": 2, "cooldownMs": 2000}}
+""".trimIndent()
+
     @Test
     fun `腾讯视频H5互动开屏：跳过+互动广告标记命中`() {
         val rules = load(skipH5, skipH5Countdown)
@@ -99,6 +108,29 @@ class H5SkipRulesTest {
         ))
         val matches = RuleMatcher.findMatches(rules.map { RuleIndex.IndexedRule(it, "p") }, WindowSnapshot("top.hnwen17.guard.probe.a", 1, window))
         assertTrue(matches.isEmpty(), "长句中的广告字样不构成独立广告标签")
+    }
+
+    @Test
+    fun `小度开屏：跳过+独立纯数字倒计时命中`() {
+        val rules = load(skipNumeric)
+        val window = node(null, children = listOf(
+            node(null, text = "跳过", clickable = true),
+            node(null, text = "51")
+        ))
+        val matches = RuleMatcher.findMatches(rules.map { RuleIndex.IndexedRule(it, "p") }, WindowSnapshot("com.baidu.duer.superapp", 1, window))
+        assertEquals(1, matches.size)
+        assertEquals("generic.splash.skip_numeric", matches[0].rule.id)
+    }
+
+    @Test
+    fun `教程负例：长句中的数字不构成纯数字倒计时证据`() {
+        val rules = load(skipNumeric)
+        val window = node(null, children = listOf(
+            node(null, text = "新手教程第1页：欢迎。"),
+            node("tutorial_skip", text = "跳过", clickable = true)
+        ))
+        val matches = RuleMatcher.findMatches(rules.map { RuleIndex.IndexedRule(it, "p") }, WindowSnapshot("top.hnwen17.guard.probe.a", 1, window))
+        assertTrue(matches.isEmpty(), "长句中的数字不得当作倒计时证据")
     }
 
     @Test

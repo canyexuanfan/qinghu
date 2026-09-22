@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "qinghu.builtin.generic.zh",
-  "version": 19,
+  "version": 20,
   "provenance": {
     "author": "Qinghu",
     "license": "PROJECT-OWNED",
@@ -1202,6 +1202,39 @@
       "postcondition": {
         "absentTextEquals": "广告",
         "timeoutMs": 800
+      }
+    },
+    {
+      "id": "generic.splash.skip_numeric",
+      "version": 1,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "user-observation-log-2026-09-22"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textEquals": "跳过",
+        "windowHasNumericText": true
+      },
+      "postcondition": {
+        "absentTextEquals": "跳过",
+        "timeoutMs": 1000
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 2000
       }
     }
   ]

@@ -78,6 +78,7 @@ object RuleMatcher {
                 ctx.textBlob?.let { b -> rule.match.windowTextContainsAny!!.any { b.contains(it.lowercase()) } } != true) continue
             if (rule.match.windowTextEqualsAny != null &&
                 ctx.fullTexts?.let { ts -> rule.match.windowTextEqualsAny!!.any { v -> ts.contains(v.trim().lowercase()) } } != true) continue
+            if (rule.match.windowHasNumericText == true && ctx.hasNumericText != true) continue
             if (rule.match.windowViewIdContainsAny != null &&
                 ctx.viewIdBlob?.let { b -> rule.match.windowViewIdContainsAny!!.any { b.contains(it.lowercase()) } } != true) continue
             val node = findNode(snapshot.root, rule.match, 0, emptyList(), ctx) ?: continue
@@ -94,22 +95,27 @@ object RuleMatcher {
     private class WindowCtx private constructor(
         val textBlob: String?,
         val fullTexts: Set<String>?,
+        val hasNumericText: Boolean,
         val viewIdBlob: String?
     ) {
         companion object {
+            private val NUMERIC = Regex("\\d{1,3}")
+
             fun of(snapshot: WindowSnapshot, cond: UiRule.MatchCondition): WindowCtx {
                 val needText = cond.windowTextContainsAny != null
                 val needEquals = cond.windowTextEqualsAny != null
+                val needNumeric = cond.windowHasNumericText == true
                 val needIds = cond.windowViewIdContainsAny != null
-                if (!needText && !needEquals && !needIds) return WindowCtx(null, null, null)
+                if (!needText && !needEquals && !needNumeric && !needIds) return WindowCtx(null, null, false, null)
                 val texts = if (needText) StringBuilder() else null
                 val equalsSet = if (needEquals) HashSet<String>() else null
                 val ids = if (needIds) StringBuilder() else null
-                walk(snapshot.root, texts, equalsSet, ids)
-                return WindowCtx(texts?.toString(), equalsSet, ids?.toString())
+                var hasNumeric = false
+                walk(snapshot.root, texts, equalsSet, ids) { t -> if (needNumeric && !hasNumeric && NUMERIC.matches(t)) hasNumeric = true }
+                return WindowCtx(texts?.toString(), equalsSet, hasNumeric, ids?.toString())
             }
 
-            private fun walk(n: SnapshotNode, texts: StringBuilder?, equalsSet: MutableSet<String>?, ids: StringBuilder?) {
+            private fun walk(n: SnapshotNode, texts: StringBuilder?, equalsSet: MutableSet<String>?, ids: StringBuilder?, onText: (String) -> Unit) {
                 if (texts != null) {
                     n.text?.takeIf { it.isNotBlank() }?.let { texts.append(it.lowercase()).append('\n') }
                     n.desc?.takeIf { it.isNotBlank() }?.let { texts.append(it.lowercase()).append('\n') }
@@ -118,10 +124,12 @@ object RuleMatcher {
                     n.text?.trim()?.takeIf { it.isNotEmpty() }?.let { equalsSet.add(it.lowercase()) }
                     n.desc?.trim()?.takeIf { it.isNotEmpty() }?.let { equalsSet.add(it.lowercase()) }
                 }
+                n.text?.trim()?.let(onText)
+                n.desc?.trim()?.let(onText)
                 if (ids != null) {
                     n.viewId?.let { ids.append(it.substringAfterLast('/').lowercase()).append('\n') }
                 }
-                for (c in n.children) walk(c, texts, equalsSet, ids)
+                for (c in n.children) walk(c, texts, equalsSet, ids, onText)
             }
         }
     }
