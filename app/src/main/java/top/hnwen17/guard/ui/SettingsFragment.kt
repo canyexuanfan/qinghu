@@ -1,6 +1,14 @@
 package top.hnwen17.guard.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AlertDialog
@@ -208,8 +216,86 @@ class SettingsFragment : BoundFragment<FragmentSettingsBinding>(FragmentSettings
             explain("无法打开系统弹窗", "请手动设置：系统设置 → 电池/省电 → 找到「轻护」→ 允许后台运行（或设为无限制/不优化）。")
         }
     }
-    private fun about() = explain("轻护", "远离广告干扰 · 守护纯净体验\n\nKotlin + Android Views/XML + ViewBinding\n实际构建版本：${BuildConfig.VERSION_NAME}\n作者：十七°\n\n" +
-        if(BuildConfig.PREVIEW_DATA) "预览中的应用、版本、统计和防护状态均为设计示例。页面为真实原生控件，防护后端未接入。" else "防护执行器已接入，通用规则自动工作中。所有识别均在本机完成。")
+    private fun about() {
+        val info = "远离广告干扰 · 守护纯净体验\n\nKotlin + Android Views/XML + ViewBinding\n\n" +
+            "当前版本：v" + BuildConfig.VERSION_NAME + "\n作者：十七°\n\n" +
+            "作者主页：www.hnwen17.top（点击下方按钮复制链接，粘贴到浏览器访问）\n\n" +
+            if (BuildConfig.PREVIEW_DATA) "预览版页面为设计示例，防护后端未接入。" else "所有识别均在本机完成；联网仅在你点击「检查更新」时发生。"
+        AlertDialog.Builder(requireContext())
+            .setTitle("关于 轻护")
+            .setMessage(info)
+            .setNegativeButton("关闭", null)
+            .setNeutralButton("复制主页链接") { _, _ ->
+                val cm = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText("url", top.hnwen17.guard.platform.update.AppUpdateChecker.AUTHOR_SITE))
+                Toast.makeText(requireContext(), "链接已复制，请粘贴到浏览器打开", Toast.LENGTH_LONG).show()
+            }
+            .setPositiveButton("检查更新") { _, _ -> checkAppUpdate() }
+            .show()
+    }
+
+    /** 手动检查更新：点击才联网（QH-隐私定位），从公开 GitHub Release 拉取正式包。 */
+    private fun checkAppUpdate() {
+        val ctx = requireContext()
+        val wait = AlertDialog.Builder(ctx).setTitle("检查更新")
+            .setMessage("正在连接更新服务器…").setCancelable(false).create()
+        wait.show()
+        lifecycleScope.launch {
+            val release = withContext(Dispatchers.IO) {
+                top.hnwen17.guard.platform.update.AppUpdateChecker.fetchLatest()
+            }
+            wait.dismiss()
+            when {
+                release == null -> AlertDialog.Builder(ctx).setTitle("检查更新")
+                    .setMessage("检查失败：无法连接更新服务器。\n可到 GitHub 仓库 Releases 页面手动查看。")
+                    .setPositiveButton("知道了", null).show()
+                !top.hnwen17.guard.platform.update.AppUpdateChecker.isNewer(release.version, BuildConfig.VERSION_NAME) ->
+                    AlertDialog.Builder(ctx).setTitle("检查更新")
+                        .setMessage("当前已是最新版本 v" + BuildConfig.VERSION_NAME + "。")
+                        .setPositiveButton("知道了", null).show()
+                else -> AlertDialog.Builder(ctx).setTitle("发现新版本 v" + release.version)
+                    .setMessage("当前 v" + BuildConfig.VERSION_NAME + "，可更新到 v" + release.version + "。\n\n" + release.notes)
+                    .setNegativeButton("以后再说", null)
+                    .setPositiveButton("下载并安装") { _, _ -> downloadAndInstall(release.apkUrl) }
+                    .show()
+            }
+        }
+    }
+
+    private fun downloadAndInstall(apkUrl: String) {
+        val ctx = requireContext()
+        // 安装未知应用授权（同签名覆盖安装，数据与授权保留）
+        if (!ctx.packageManager.canRequestPackageInstalls()) {
+            Toast.makeText(ctx, "请先允许「安装未知应用」，再点击检查更新重新下载", Toast.LENGTH_LONG).show()
+            startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                android.net.Uri.parse("package:" + BuildConfig.APPLICATION_ID)))
+            return
+        }
+        val wait = AlertDialog.Builder(ctx).setTitle("下载更新")
+            .setMessage("准备下载…").setCancelable(false).create()
+        wait.show()
+        lifecycleScope.launch {
+            val file = withContext(Dispatchers.IO) {
+                top.hnwen17.guard.platform.update.AppUpdateChecker.downloadApk(ctx, apkUrl) { pct ->
+                    requireActivity().runOnUiThread { wait.setMessage("下载中… " + pct + "%") }
+                }
+            }
+            wait.dismiss()
+            if (file == null) {
+                AlertDialog.Builder(ctx).setTitle("下载失败")
+                    .setMessage("下载失败，请检查网络后重试。")
+                    .setPositiveButton("知道了", null).show()
+                return@launch
+            }
+            Toast.makeText(ctx, "下载完成，正在打开安装程序", Toast.LENGTH_LONG).show()
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                ctx, BuildConfig.APPLICATION_ID + ".fileprovider", file)
+            val install = android.content.Intent(android.content.Intent.ACTION_VIEW)
+                .setDataAndType(uri, "application/vnd.android.package-archive")
+                .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            ctx.startActivity(install)
+        }
+    }
     private fun diagnostic() {
         val state = model.diagnostics.value
         AlertDialog.Builder(requireContext()).setTitle("计算诊断")
