@@ -247,7 +247,7 @@ class SettingsFragment : BoundFragment<FragmentSettingsBinding>(FragmentSettings
             wait.dismiss()
             when {
                 release == null -> AlertDialog.Builder(ctx).setTitle("检查更新")
-                    .setMessage("检查失败：无法连接更新服务器。\n可到 GitHub 仓库 Releases 页面手动查看。")
+                    .setMessage("检查失败：" + top.hnwen17.guard.platform.update.AppUpdateChecker.lastError + "\n\n可稍后重试，或到 GitHub 仓库 Releases 页面手动查看。")
                     .setPositiveButton("知道了", null).show()
                 !top.hnwen17.guard.platform.update.AppUpdateChecker.isNewer(release.version, BuildConfig.VERSION_NAME) ->
                     AlertDialog.Builder(ctx).setTitle("检查更新")
