@@ -197,10 +197,32 @@ class GuardAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val dispatcher = dispatcher ?: return
         val e = event ?: return
-        // 用户交互信号先行（包名过滤前）：点桌面/系统 UI/任意按钮都证明用户在场，
-        // 供跳转判定区分「用户主动切换」与「被动拉起」（QH-P13 跳转判定核心信号）
-        if (e.eventType == android.view.accessibility.AccessibilityEvent.TYPE_VIEW_CLICKED) {
-            jumpInterceptor.onUserInteraction(monotonicMs())
+        // 用户交互信号先行（包名过滤前）：点击/长按/触摸滑动都证明用户在场，
+        // 供跳转判定区分「用户主动切换」与「被动拉起」（QH-P13 跳转判定核心信号）。
+        // 例外：点击发生在广告容器内（节点文本含「广告」）——诱饵点击不解锁跳转放行，
+        // 否则误点广告后的跳转会被当作用户路径放行（真机反馈）
+        when (e.eventType) {
+            android.view.accessibility.AccessibilityEvent.TYPE_VIEW_CLICKED -> {
+                var adBait = false
+                val src = e.source
+                if (src != null) {
+                    try {
+                        var node: android.view.accessibility.AccessibilityNodeInfo? = src
+                        var depth = 0
+                        while (node != null && depth < 6 && !adBait) {
+                            val t = node.text?.toString().orEmpty()
+                            val d = node.contentDescription?.toString().orEmpty()
+                            if (t.contains("广告") || d.contains("广告")) adBait = true
+                            node = node.parent
+                            depth++
+                        }
+                    } catch (_: Exception) { }
+                }
+                if (!adBait) jumpInterceptor.onUserInteraction(monotonicMs())
+            }
+            android.view.accessibility.AccessibilityEvent.TYPE_VIEW_LONG_CLICKED,
+            android.view.accessibility.AccessibilityEvent.TYPE_TOUCH_INTERACTION_START ->
+                jumpInterceptor.onUserInteraction(monotonicMs())
         }
         val source = e.packageName?.toString() ?: return
         // 廉价筛选：只复制 primitive；自身与系统 UI 事件忽略
@@ -235,7 +257,8 @@ class GuardAccessibilityService : AccessibilityService() {
             }
             // QH-P12：前台切换 → 跳转判定（BACK 拦截或放行），再喂规则引擎
             // MuMu 系统窗口（com.unian.* / com.mumu.*）不参与前台跟踪（会打断驻留计时）
-            val isSystemWindow = source.startsWith("com.unian") || source.startsWith("com.mumu")
+            val isSystemWindow = source.startsWith("com.unian") || source.startsWith("com.mumu") ||
+                source.startsWith("com.android.systemui") // 通知栏/系统分享面板，非跳转目标
             val prev = lastForegroundPackage
             if (!isSystemWindow) jumpInterceptor.onForeground(source, monotonicMs())
             if (prev != null && prev != source && !isSystemWindow) onWindowJumpCandidate(prev, source)

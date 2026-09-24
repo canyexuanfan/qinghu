@@ -17,7 +17,7 @@ import top.hnwen17.guard.core.session.MonotonicClock
  */
 class JumpInterceptor(
     private val clock: MonotonicClock,
-    private val interactionRecentMs: Long = 2000L
+    private val interactionRecentMs: Long = 3000L
 ) {
 
     data class Decision(val action: Action, val reason: String)
