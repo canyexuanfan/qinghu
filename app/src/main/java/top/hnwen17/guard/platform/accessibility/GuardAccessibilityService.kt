@@ -292,6 +292,8 @@ class GuardAccessibilityService : AccessibilityService() {
     private val sensorAdBack = top.hnwen17.guard.platform.sensor.SensorAdBackGuard(
         clock = top.hnwen17.guard.core.session.MonotonicClock { android.os.SystemClock.uptimeMillis() }
     )
+    private val lastBlockAtMs = HashMap<String, Long>() // from|to → 最近拦截时刻（防振荡）
+
     private val jumpInterceptor = top.hnwen17.guard.platform.jump.JumpInterceptor(
         clock = top.hnwen17.guard.core.session.MonotonicClock { android.os.SystemClock.uptimeMillis() }
     )
@@ -306,16 +308,20 @@ class GuardAccessibilityService : AccessibilityService() {
         // 来源识别三信号（用户指导：所有需要禁掉的跳转都来自广告）
         val now = monotonicMs()
         val engineClickRecent = app.ruleRuntime.recentAdAction(withinMs = 3000, nowMs = now)
+        // 「广告在场」只认引擎真实尝试过且未成功关闭的记录（FAILED/EXECUTED）。
+        // 观察日志（疑似留痕）严禁作为证据：浏览器等信息流页永远有 miss 记录，
+        // 弱证据会自激振荡——打开 App→记疑似→一切跳转被判广告→BACK→再记→持续误拦
         val adStillVisible = app.recordStore.all.value.any {
             it.packageName == fromPackage && it.atEpochMs >= now - 5000 &&
-                it.outcome != top.hnwen17.guard.core.records.ProtectionOutcome.VERIFIED
-        } || app.observeStore.all.value.any {
-            it.packageName == fromPackage && it.atEpochMs >= now - 5000
+                (it.outcome == top.hnwen17.guard.core.records.ProtectionOutcome.FAILED ||
+                 it.outcome == top.hnwen17.guard.core.records.ProtectionOutcome.EXECUTED)
         }
         val landingPage = top.hnwen17.guard.core.rules.AdWindowHeuristics.AD_ACTIVITY_TOKENS.any {
             toClassName.lowercase().contains(it)
         }
         val adOrigin = engineClickRecent || adStillVisible || landingPage
+        // 同目标冷却：10 秒内同一对 from→to 只拦一次（防 BACK 振荡，真机 09-24 教训）
+        if (lastBlockAtMs["$fromPackage|$toPackage"]?.let { now - it < 10_000L } == true) return
         val decision = jumpInterceptor.decide(
             fromPackage = fromPackage,
             toPackage = toPackage,
@@ -333,6 +339,7 @@ class GuardAccessibilityService : AccessibilityService() {
         )
         android.util.Log.d("RuleRuntime", "JUMP ${decision.action} $fromPackage -> $toPackage (${decision.reason})")
         if (decision.action == top.hnwen17.guard.platform.jump.JumpInterceptor.Action.BLOCK_BACK) {
+            lastBlockAtMs["$fromPackage|$toPackage"] = monotonicMs()
             mainHandler.post { performGlobalAction(GLOBAL_ACTION_BACK) }
             // QH-P13：拦截执行落记录（START_REJECTED 为真实执行动作，计入统计）
             (applicationContext as? top.hnwen17.guard.GuardApplication)?.recordStore?.record(
