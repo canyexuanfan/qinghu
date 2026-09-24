@@ -24,6 +24,46 @@ class JumpInterceptorTest {
     }
 
     @Test
+    fun `近期用户点击则放行（用户主动路径）`() {
+        val clock = FakeClock()
+        val j = JumpInterceptor(clock)
+        j.onForeground("com.source", clock.nowMs())
+        clock.now += 1000
+        j.onUserInteraction(clock.nowMs()) // 用户点了图标/按钮
+        clock.now += 500 // 点击后 500ms 发生跳转
+        assertEquals(
+            JumpInterceptor.Action.ALLOW_USER_PATH,
+            j.decide("com.source", "com.ad", jumpEnabled = true, targetSensitive = false).action
+        )
+    }
+
+    @Test
+    fun `驻留极短且无交互（开屏秒拉起）也拦截`() {
+        val clock = FakeClock()
+        val j = JumpInterceptor(clock)
+        j.onForeground("com.source", clock.nowMs())
+        clock.now += 300 // 驻留仅 300ms：旧逻辑放行（真机「只拦极少」的主因），新逻辑拦截
+        assertEquals(
+            JumpInterceptor.Action.BLOCK_BACK,
+            j.decide("com.source", "com.ad", jumpEnabled = true, targetSensitive = false).action
+        )
+    }
+
+    @Test
+    fun `点击超过2秒后跳转不再视为用户路径`() {
+        val clock = FakeClock()
+        val j = JumpInterceptor(clock)
+        j.onForeground("com.source", clock.nowMs())
+        clock.now += 500
+        j.onUserInteraction(clock.nowMs())
+        clock.now += 3000 // 点击已过去 3 秒（> interactionRecentMs 2000）
+        assertEquals(
+            JumpInterceptor.Action.BLOCK_BACK,
+            j.decide("com.source", "com.ad", jumpEnabled = true, targetSensitive = false).action
+        )
+    }
+
+    @Test
     fun `未开启Jump只观测`() {
         val clock = FakeClock()
         val j = JumpInterceptor(clock)
@@ -48,13 +88,13 @@ class JumpInterceptorTest {
     }
 
     @Test
-    fun `驻留过短视为用户主动路径放行`() {
+    fun `驻留过短且无交互（开屏秒拉起）也拦截`() {
         val clock = FakeClock()
-        val j = JumpInterceptor(clock, minForegroundMs = 800)
+        val j = JumpInterceptor(clock)
         j.onForeground("com.source", clock.nowMs())
-        clock.now += 100 // 驻留 100ms：用户快速切换
+        clock.now += 100 // 驻留 100ms 且无用户交互：被动拉起，拦截（旧逻辑此处放行）
         assertEquals(
-            JumpInterceptor.Action.ALLOW_USER_PATH,
+            JumpInterceptor.Action.BLOCK_BACK,
             j.decide("com.source", "com.ad", jumpEnabled = true, targetSensitive = false).action
         )
     }

@@ -197,6 +197,11 @@ class GuardAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val dispatcher = dispatcher ?: return
         val e = event ?: return
+        // 用户交互信号先行（包名过滤前）：点桌面/系统 UI/任意按钮都证明用户在场，
+        // 供跳转判定区分「用户主动切换」与「被动拉起」（QH-P13 跳转判定核心信号）
+        if (e.eventType == android.view.accessibility.AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            jumpInterceptor.onUserInteraction(monotonicMs())
+        }
         val source = e.packageName?.toString() ?: return
         // 廉价筛选：只复制 primitive；自身与系统 UI 事件忽略
         if (source == packageName || source.startsWith("com.android.systemui")) return

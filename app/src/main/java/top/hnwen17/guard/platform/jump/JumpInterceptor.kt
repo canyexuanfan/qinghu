@@ -17,7 +17,7 @@ import top.hnwen17.guard.core.session.MonotonicClock
  */
 class JumpInterceptor(
     private val clock: MonotonicClock,
-    private val minForegroundMs: Long = 800L
+    private val interactionRecentMs: Long = 2000L
 ) {
 
     data class Decision(val action: Action, val reason: String)
@@ -56,14 +56,18 @@ class JumpInterceptor(
         targetSensitive: Boolean
     ): Decision {
         if (toPackage == fromPackage) return Decision(Action.OBSERVE, "same package")
-        val heldMs = clock.nowMs() - foregroundSinceMs
-        // 驻留极短：可能是用户快速切换（用户路径），放行
-        if (heldMs < minForegroundMs) return Decision(Action.ALLOW_USER_PATH, "foreground ${heldMs}ms < $minForegroundMs")
+        // 用户主动路径判定：近期有点击（点图标/最近任务/按钮）→ 跳转是用户意图，放行。
+        // 旧「驻留 ≥800ms」方案弃用：开屏广告恰在用户刚打开 App（驻留必然 <800ms）
+        // 时秒拉起跳转，被一刀切当作用户路径放行——真机反馈「只拦极少一部分」的主因。
+        val sinceInteraction = clock.nowMs() - lastInteractionMs
+        if (lastInteractionMs > 0 && sinceInteraction < interactionRecentMs) {
+            return Decision(Action.ALLOW_USER_PATH, "user interaction " + sinceInteraction + "ms ago")
+        }
         // 敏感目标一律放行（支付/登录优先于拦截）
         if (targetSensitive) return Decision(Action.ALLOW_SENSITIVE, "sensitive target")
         // 未显式开启：只观测
         if (!jumpEnabled) return Decision(Action.OBSERVE, "jump not enabled for $fromPackage")
-        // 全部满足：拦截（BACK 返回源应用）
+        // 无近期用户交互的跨包拉起 = 被动跳转（摇一摇/开屏自动拉起/诱导自动跳），拦截
         return Decision(Action.BLOCK_BACK, "auto jump $fromPackage -> $toPackage blocked")
     }
 
