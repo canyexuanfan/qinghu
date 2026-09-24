@@ -197,33 +197,6 @@ class GuardAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val dispatcher = dispatcher ?: return
         val e = event ?: return
-        // 用户交互信号先行（包名过滤前）：点击/长按/触摸滑动都证明用户在场，
-        // 供跳转判定区分「用户主动切换」与「被动拉起」（QH-P13 跳转判定核心信号）。
-        // 例外：点击发生在广告容器内（节点文本含「广告」）——诱饵点击不解锁跳转放行，
-        // 否则误点广告后的跳转会被当作用户路径放行（真机反馈）
-        when (e.eventType) {
-            android.view.accessibility.AccessibilityEvent.TYPE_VIEW_CLICKED -> {
-                var adBait = false
-                val src = e.source
-                if (src != null) {
-                    try {
-                        var node: android.view.accessibility.AccessibilityNodeInfo? = src
-                        var depth = 0
-                        while (node != null && depth < 6 && !adBait) {
-                            val t = node.text?.toString().orEmpty()
-                            val d = node.contentDescription?.toString().orEmpty()
-                            if (t.contains("广告") || d.contains("广告")) adBait = true
-                            node = node.parent
-                            depth++
-                        }
-                    } catch (_: Exception) { }
-                }
-                if (!adBait) jumpInterceptor.onUserInteraction(monotonicMs())
-            }
-            android.view.accessibility.AccessibilityEvent.TYPE_VIEW_LONG_CLICKED,
-            android.view.accessibility.AccessibilityEvent.TYPE_TOUCH_INTERACTION_START ->
-                jumpInterceptor.onUserInteraction(monotonicMs())
-        }
         val source = e.packageName?.toString() ?: return
         // 廉价筛选：只复制 primitive；自身与系统 UI 事件忽略
         if (source == packageName || source.startsWith("com.android.systemui")) return
@@ -260,8 +233,7 @@ class GuardAccessibilityService : AccessibilityService() {
             val isSystemWindow = source.startsWith("com.unian") || source.startsWith("com.mumu") ||
                 source.startsWith("com.android.systemui") // 通知栏/系统分享面板，非跳转目标
             val prev = lastForegroundPackage
-            if (!isSystemWindow) jumpInterceptor.onForeground(source, monotonicMs())
-            if (prev != null && prev != source && !isSystemWindow) onWindowJumpCandidate(prev, source)
+            if (prev != null && prev != source && !isSystemWindow) onWindowJumpCandidate(prev, source, e.className?.toString().orEmpty())
             if (!isSystemWindow) lastForegroundPackage = source
             touchShield.onWindowChanged(session) // QH-P09-06：窗口切换先撤旧盾
             // QH-P10 实用路径：广告 SDK 全屏 Activity（含摇一摇落地页）→ BACK（无需 Shizuku）
@@ -325,12 +297,25 @@ class GuardAccessibilityService : AccessibilityService() {
     )
 
     /** 跳转候选：前台包从 X 切到 P 且 P 不同于 X 时判定。 */
-    private fun onWindowJumpCandidate(fromPackage: String?, toPackage: String) {
+    private fun onWindowJumpCandidate(fromPackage: String?, toPackage: String, toClassName: String) {
         fromPackage ?: return
         if (toPackage == fromPackage) return
         val app = applicationContext as? top.hnwen17.guard.GuardApplication ?: return
         val settings = app.repository.state.value.settings
         val targetSensitive = top.hnwen17.guard.core.policy.SafetyExclusions.isSensitivePackageName(toPackage)
+        // 来源识别三信号（用户指导：所有需要禁掉的跳转都来自广告）
+        val now = monotonicMs()
+        val engineClickRecent = app.ruleRuntime.recentAdAction(withinMs = 3000, nowMs = now)
+        val adStillVisible = app.recordStore.all.value.any {
+            it.packageName == fromPackage && it.atEpochMs >= now - 5000 &&
+                it.outcome != top.hnwen17.guard.core.records.ProtectionOutcome.VERIFIED
+        } || app.observeStore.all.value.any {
+            it.packageName == fromPackage && it.atEpochMs >= now - 5000
+        }
+        val landingPage = top.hnwen17.guard.core.rules.AdWindowHeuristics.AD_ACTIVITY_TOKENS.any {
+            toClassName.lowercase().contains(it)
+        }
+        val adOrigin = engineClickRecent || adStillVisible || landingPage
         val decision = jumpInterceptor.decide(
             fromPackage = fromPackage,
             toPackage = toPackage,
@@ -343,7 +328,8 @@ class GuardAccessibilityService : AccessibilityService() {
                 )
                 resolved.jump
             },
-            targetSensitive = targetSensitive
+            targetSensitive = targetSensitive,
+            adOrigin = adOrigin
         )
         android.util.Log.d("RuleRuntime", "JUMP ${decision.action} $fromPackage -> $toPackage (${decision.reason})")
         if (decision.action == top.hnwen17.guard.platform.jump.JumpInterceptor.Action.BLOCK_BACK) {

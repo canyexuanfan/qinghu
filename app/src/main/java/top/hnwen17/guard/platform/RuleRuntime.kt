@@ -55,9 +55,15 @@ class RuleRuntime(
     private val ruleFailCounts = HashMap<String, Int>()
     @Volatile private var lastRoScanAtMs: Long = 0L // 观察舱扫描节流（≥5s） // QH-P18：pkg|rule → 失败次数（≥3 自动停用）
     @Volatile private var lastExecutedAtMs: Long = 0L // QH-P18：exec 后短窗内的失败不再记观察（窗口关闭过程中的连带事件）
+    /** 最近一次广告控件点击时间（clock 域）：跳转来源识别信号（3 秒内的拉起视为广告链路） */
+    @Volatile var lastAdActionAtMs: Long = 0L
 
     /** QH-P18 全局点击限流：跨规则 10 秒窗口内最多 3 次点击（用户报告「反复操作屏幕致失去控制」）。 */
     private val globalClickTimes = ArrayDeque<Long>()
+    /** 跳转来源识别：距最近一次广告控件点击是否不超过 [withinMs]。 */
+    fun recentAdAction(withinMs: Long, nowMs: Long): Boolean =
+        lastAdActionAtMs > 0 && (nowMs - lastAdActionAtMs) <= withinMs
+
     private fun clickAllowed(): Boolean = synchronized(globalClickTimes) {
         val now = clock.nowMs()
         while (globalClickTimes.isNotEmpty() && now - globalClickTimes.first() > 10_000) globalClickTimes.removeFirst()
@@ -361,6 +367,7 @@ class RuleRuntime(
                     logAction("EXEC fail: click rejected ${rule.id}"); continue
                 }
                 lastExecutedAtMs = clock.nowMs()
+                lastAdActionAtMs = lastExecutedAtMs
                 ledger.recordAttempt(rule, rule.action.cooldownMs, rule.postcondition?.timeoutMs ?: 0L)
                 val done = "EXECUTED ${rule.id} epoch=${event.session.epoch}"
                 logAction(done)
