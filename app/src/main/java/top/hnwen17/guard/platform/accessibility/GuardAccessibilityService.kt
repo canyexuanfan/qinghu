@@ -41,6 +41,10 @@ class GuardAccessibilityService : AccessibilityService() {
     private var reducerState = ProtectionReducer.State()
     private val windowEpochs = HashMap<Int, Long>() // windowId → 稳定 epoch（有界）
     @Volatile private var lastForegroundPackage: String? = null
+    /** 用户触摸最后时刻（任意包名）：回归放行的主动性证据。 */
+    @Volatile private var lastUserTouchAtMs = 0L
+    /** 最近离开的前台应用（≤4 条）：回归放行的目标匹配表（读取时按 15s 时效过滤）。 */
+    private val recentLeftApps = ArrayDeque<Pair<String, Long>>()
     private val touchShield by lazy {
         top.hnwen17.guard.platform.touch.TouchShieldManager(this) { visible, reason ->
             android.util.Log.d("RuleRuntime", "shield $visible: $reason")
@@ -197,6 +201,14 @@ class GuardAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val dispatcher = dispatcher ?: return
         val e = event ?: return
+        // 用户在场证据（任意包名，包名过滤前记录）：切后台手势/最近任务/图标点击
+        // 都是用户主动导航的痕迹，供「回归放行」判定用户主动性（用户要求：关键是我主动）
+        when (e.eventType) {
+            android.view.accessibility.AccessibilityEvent.TYPE_TOUCH_INTERACTION_START,
+            android.view.accessibility.AccessibilityEvent.TYPE_VIEW_CLICKED,
+            android.view.accessibility.AccessibilityEvent.TYPE_VIEW_LONG_CLICKED ->
+                lastUserTouchAtMs = monotonicMs()
+        }
         val source = e.packageName?.toString() ?: return
         // 廉价筛选：只复制 primitive；自身与系统 UI 事件忽略
         if (source == packageName || source.startsWith("com.android.systemui")) return
@@ -233,7 +245,11 @@ class GuardAccessibilityService : AccessibilityService() {
             val isSystemWindow = source.startsWith("com.unian") || source.startsWith("com.mumu") ||
                 source.startsWith("com.android.systemui") // 通知栏/系统分享面板，非跳转目标
             val prev = lastForegroundPackage
-            if (prev != null && prev != source && !isSystemWindow) onWindowJumpCandidate(prev, source, e.className?.toString().orEmpty())
+            if (prev != null && prev != source && !isSystemWindow) {
+                recentLeftApps.addLast(prev to monotonicMs())
+                while (recentLeftApps.size > 4) recentLeftApps.removeFirst()
+                onWindowJumpCandidate(prev, source, e.className?.toString().orEmpty())
+            }
             if (!isSystemWindow) lastForegroundPackage = source
             touchShield.onWindowChanged(session) // QH-P09-06：窗口切换先撤旧盾
             // QH-P10 实用路径：广告 SDK 全屏 Activity（含摇一摇落地页）→ BACK（无需 Shizuku）
@@ -302,6 +318,13 @@ class GuardAccessibilityService : AccessibilityService() {
     private fun onWindowJumpCandidate(fromPackage: String?, toPackage: String, toClassName: String) {
         fromPackage ?: return
         if (toPackage == fromPackage) return
+        // 回归放行（用户主动离开又主动回来）：目标在 15s 内离开历史中 + 回归瞬间有触摸证据。
+        // 程序化弹回（无触摸）不享受放行；纯内存操作，微秒级，不新增快照。
+        val touchedRecently = lastUserTouchAtMs > 0 && (monotonicMs() - lastUserTouchAtMs) <= 1500L
+        if (touchedRecently && recentLeftApps.any { it.first == toPackage && monotonicMs() - it.second <= 15_000L }) {
+            android.util.Log.d("RuleRuntime", "JUMP allow-return $fromPackage -> $toPackage (user return)")
+            return
+        }
         val app = applicationContext as? top.hnwen17.guard.GuardApplication ?: return
         val settings = app.repository.state.value.settings
         val targetSensitive = top.hnwen17.guard.core.policy.SafetyExclusions.isSensitivePackageName(toPackage)
@@ -339,17 +362,52 @@ class GuardAccessibilityService : AccessibilityService() {
         )
         android.util.Log.d("RuleRuntime", "JUMP ${decision.action} $fromPackage -> $toPackage (${decision.reason})")
         if (decision.action == top.hnwen17.guard.platform.jump.JumpInterceptor.Action.BLOCK_BACK) {
-            lastBlockAtMs["$fromPackage|$toPackage"] = monotonicMs()
-            mainHandler.post { performGlobalAction(GLOBAL_ACTION_BACK) }
-            // QH-P13：拦截执行落记录（START_REJECTED 为真实执行动作，计入统计）
-            (applicationContext as? top.hnwen17.guard.GuardApplication)?.recordStore?.record(
-                ruleId = "jump.auto.back", ruleVersion = 1, packageName = fromPackage,
-                windowEpoch = monotonicMs(),
-                outcome = top.hnwen17.guard.core.records.ProtectionOutcome.START_REJECTED,
-                atEpochMs = System.currentTimeMillis(),
-                eventType = top.hnwen17.guard.core.records.EventType.LAUNCH_INTENT_OBSERVED
-            )
+            // 退出前验证（用户原则：没识别为广告就不动）：
+            // 第一级零成本——目标 Activity 类名比对（微秒级）；
+            // 第二级——快照文本检查（与跳过规则同款、≤256 节点、毫秒级、后台线程，
+            // 不占主线程、不阻塞跳过流程——跳过是独立路径，不等本验证）。
+            // 两级都不中 → 放弃 BACK；快照不可用 → 放弃 BACK（宁放过不误退）。
+            val classVerified = top.hnwen17.guard.core.rules.AdWindowHeuristics.AD_ACTIVITY_TOKENS.any {
+                toClassName.lowercase().contains(it)
+            }
+            if (classVerified) {
+                executeJumpBlock(fromPackage, toPackage)
+                return
+            }
+            val fp = fromPackage
+            serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                var verified = false
+                try {
+                    val root = rootInActiveWindow
+                    if (root != null) {
+                        val live = top.hnwen17.guard.platform.accessibility.NodeSnapshotReader.snapshotLive(root)
+                        if (live != null) {
+                            try {
+                                if (top.hnwen17.guard.core.rules.SnapshotNode.isWithinBudget(live.rootSnapshot)) {
+                                    verified = top.hnwen17.guard.core.rules.AdWindowHeuristics.hasDismissEvidence(live.rootSnapshot)
+                                }
+                            } finally { live.recycleAll() }
+                        }
+                    }
+                } catch (_: Exception) { }
+                if (verified) mainHandler.post { executeJumpBlock(fp, toPackage) }
+                else android.util.Log.d("RuleRuntime", "JUMP abort: dismiss target has no ad evidence ($fp -> $toPackage)")
+            }
         }
+    }
+
+    /** 验证通过后的拦截执行：冷却标记 + BACK + 落记录。 */
+    private fun executeJumpBlock(fromPackage: String, toPackage: String) {
+        lastBlockAtMs["$fromPackage|$toPackage"] = monotonicMs()
+        mainHandler.post { performGlobalAction(GLOBAL_ACTION_BACK) }
+        // QH-P13：拦截执行落记录（START_REJECTED 为真实执行动作，计入统计）
+        (applicationContext as? top.hnwen17.guard.GuardApplication)?.recordStore?.record(
+            ruleId = "jump.auto.back", ruleVersion = 1, packageName = fromPackage,
+            windowEpoch = monotonicMs(),
+            outcome = top.hnwen17.guard.core.records.ProtectionOutcome.START_REJECTED,
+            atEpochMs = System.currentTimeMillis(),
+            eventType = top.hnwen17.guard.core.records.EventType.LAUNCH_INTENT_OBSERVED
+        )
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())

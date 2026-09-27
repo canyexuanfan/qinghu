@@ -35,6 +35,31 @@ object AdWindowHeuristics {
         return n.children.any { hasAdText(it) }
     }
 
+    private val SKIP_COUNTDOWN = Regex("跳过\\s*\\d{1,3}")
+
+    /**
+     * 退出前验证（跳转拦截 BACK 的放行闸门）：当前窗口是否带广告证据。
+     * 命中任一才算：① 类名命中广告 SDK 特征；② 独立「跳过/跳过 N」节点
+     * （「跳过片头/片尾」是播放器功能按钮，不算）；③ 「关闭广告/互动广告/
+     * 已Wi-Fi预加载」强标识。无证据 → 调用方必须放弃 BACK（宁放过不误退）。
+     */
+    fun hasDismissEvidence(root: SnapshotNode, activityClass: String? = null): Boolean {
+        val cls = activityClass?.lowercase().orEmpty()
+        if (AD_ACTIVITY_TOKENS.any { cls.contains(it) }) return true
+        return hasDismissText(root)
+    }
+
+    private fun hasDismissText(n: SnapshotNode): Boolean {
+        for (t in listOfNotNull(n.text, n.desc)) {
+            val s = t.trim()
+            if (s.isEmpty()) continue
+            if (s == "跳过" || SKIP_COUNTDOWN.matches(s)) return true
+            if (s.equals("Skip", ignoreCase = true)) return true
+            if (s.contains("关闭广告") || s.contains("互动广告") || s.contains("已Wi-Fi预加载")) return true
+        }
+        return n.children.any { hasDismissText(it) }
+    }
+
     /** 采样线索：跳过/关闭类控件短 id 与窗口短文本（去重、有界、不含长文本）。 */
     fun collectSamples(root: SnapshotNode, limit: Int = 5): List<String> {
         val out = LinkedHashSet<String>()
