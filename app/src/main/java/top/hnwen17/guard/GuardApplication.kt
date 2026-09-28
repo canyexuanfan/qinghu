@@ -15,6 +15,7 @@ class GuardApplication : Application() {
     val recordStore by lazy { top.hnwen17.guard.data.records.RecordStore() } // QH-P08-07
     val observeStore by lazy { top.hnwen17.guard.data.records.ObserveStore() } // QH-P18 观察日志
     val subscriptionsStore by lazy { top.hnwen17.guard.data.SubscriptionsStore() } // 阶段3 规则订阅
+    val userRuleStore by lazy { top.hnwen17.guard.data.rules.UserRuleStore() } // 用户自建跳过规则
     val updateSettings by lazy { top.hnwen17.guard.data.UpdateSettings(this, appScope) } // QH-P16
     val ruleRuntime by lazy { // QH-P07/P08：规则运行时（服务与设置页共享单例）
         top.hnwen17.guard.platform.RuleRuntime(
@@ -49,6 +50,12 @@ class GuardApplication : Application() {
         }
         // QH-P18：观察日志持久化（出现广告必留痕，用户可导出反馈补规则）
         top.hnwen17.guard.data.records.ObserveStore.load(this, observeStore)
+        top.hnwen17.guard.data.rules.UserRuleStore.load(this, userRuleStore)
+        appScope.launch {
+            userRuleStore.all.collect {
+                top.hnwen17.guard.data.rules.UserRuleStore.save(this@GuardApplication, userRuleStore)
+            }
+        }
         // 阶段3：规则订阅持久化 + 变更即重建规则索引（三级状态/内置开关即时生效）
         top.hnwen17.guard.data.SubscriptionsStore.load(this, subscriptionsStore)
         appScope.launch {

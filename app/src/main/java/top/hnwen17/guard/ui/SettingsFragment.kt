@@ -46,6 +46,13 @@ class SettingsFragment : BoundFragment<FragmentSettingsBinding>(FragmentSettings
             binding.ruleVersion.bind("规则版本", if(state.preview) "2026.09.12 · 已是最新版本" else "内置通用规则 v3（25 条）已随应用发布", "", R.drawable.ic_records) {
                 explain("规则版本", if(state.preview) "内置通用规则已随应用发布，详细规则见 RULE_SCHEMA.md。" else "内置通用规则 v3 已随应用发布（覆盖常见开屏跳过/广告关闭文案与主流广告 SDK 控件）；自定义规则包可通过导入功能添加。")
             }
+            binding.userRules.bind("我的规则", "把没拦住的广告变成你自己的跳过规则", "", R.drawable.ic_sliders) {
+                requireActivity().supportFragmentManager.beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(top.hnwen17.guard.R.id.content, UserRulesFragment(), "user_rules")
+                    .addToBackStack("user_rules")
+                    .commit()
+            }
             binding.localOnly.bind("所有识别均在本机完成", "不上传任何屏幕内容", "已开启", R.drawable.ic_lock, Availability.ACTIVE, false) {
                 explain("本地处理与隐私", "广告识别与执行全部在本机完成，不上传任何屏幕内容；网络权限仅在显式开启在线规则更新后使用。")
             }

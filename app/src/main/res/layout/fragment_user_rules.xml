@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="@drawable/bg_page"
+    android:paddingHorizontal="@dimen/page_gutter">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="@dimen/toolbar_height"
+        android:gravity="center_vertical" android:orientation="horizontal">
+        <ImageView android:layout_width="54dp" android:layout_height="45dp"
+            android:src="@drawable/brand_symbol" android:scaleType="fitCenter"
+            android:contentDescription="轻护标志"/>
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginStart="4dp">
+            <TextView android:id="@+id/title" style="@style/Text.Body" android:text="我的规则"
+                android:textSize="17sp"/>
+            <TextView style="@style/Text.Sub"
+                android:text="把没拦住的广告变成你自己的跳过规则（无需代码）" android:textSize="11sp"/>
+        </LinearLayout>
+        <ImageButton android:id="@+id/back" style="@style/IconButton" android:src="@drawable/ic_back"
+            android:contentDescription="返回"/>
+    </LinearLayout>
+
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" android:scrollbars="none">
+        <LinearLayout android:id="@+id/ruleList" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical" android:paddingBottom="12dp"/>
+    </ScrollView>
+
+    <TextView android:id="@+id/createBtn" android:layout_width="match_parent"
+        android:layout_height="52dp" android:gravity="center"
+        android:text="从最近未拦截的广告创建规则" android:textColor="@color/white"
+        android:textSize="16sp" android:background="@drawable/bg_selected_blue"
+        android:layout_marginVertical="10dp" android:clickable="true" android:focusable="true"/>
+</LinearLayout>

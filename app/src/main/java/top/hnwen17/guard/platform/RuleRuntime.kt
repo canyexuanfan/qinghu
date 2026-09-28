@@ -171,6 +171,19 @@ class RuleRuntime(
                     }
                 }
         } catch (_: Exception) { }
+        // 用户自建规则（可视化向导生成；向导保存/删除/停用后调用 reload 即时生效）
+        try {
+            val userBytes = context.getExternalFilesDir(null)?.resolve("user_rules")?.resolve("user_rules.json")
+                ?.takeIf { it.exists() }?.readBytes()
+            if (userBytes != null) {
+                val parsed = RuleParser.parse(userBytes)
+                if (parsed is RuleParser.RuleParseResult.Ok) {
+                    packs.add(parsed.pack)
+                    ruleRepository?.registerKnown(parsed.pack.rules.map { it.id }.toSet(), defaultEnabled = true)
+                    logAction("user pack loaded: " + parsed.pack.rules.size + " rules")
+                } else logAction("user pack rejected")
+            }
+        } catch (_: Exception) { }
         index = if (packs.isEmpty()) null else RuleIndex.build(packs)
     }
 
