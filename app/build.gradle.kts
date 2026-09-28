@@ -9,8 +9,8 @@ android {
         applicationId = "top.hnwen17.guard"
         minSdk = 30
         targetSdk = 35
-        versionCode = 43
-        versionName = "0.4.7"
+        versionCode = 44
+        versionName = "0.4.8"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     flavorDimensions += "data"

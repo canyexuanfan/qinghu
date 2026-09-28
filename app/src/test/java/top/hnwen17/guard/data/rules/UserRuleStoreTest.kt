@@ -71,4 +71,43 @@ class UserRuleStoreTest {
         assertTrue(UserRuleStore.isRiskyCommonWord("确定"))
         assertFalse(UserRuleStore.isRiskyCommonWord("跳过"))
     }
+    @Test
+    fun `样本翻译：类名样式串不出现，跳过样本自动推荐`() {
+        val opts = UserRuleStore.presentableSamples(listOf("跳过", "51", "android.widget.FrameLayout"))
+        assertEquals("跳过", opts.first().value)
+        assertTrue(opts.first().recommended)
+        assertTrue(opts.none { it.value == "android.widget.FrameLayout" })
+    }
+
+    @Test
+    fun `样本翻译：viewId 含 skip 判为推荐进阶项`() {
+        val opts = UserRuleStore.presentableSamples(listOf("#splash_ad_txt_skip", "跳过广告"))
+        assertEquals(2, opts.size)
+        assertEquals("跳过广告", opts.first().value) // TEXT 推荐排在最前
+        assertTrue(opts[1].recommended)
+    }
+
+    @Test
+    fun `样本翻译：跳过片头不是跳过按钮（播放器功能）`() {
+        val opts = UserRuleStore.presentableSamples(listOf("跳过片头"))
+        assertFalse(opts[0].recommended)
+    }
+
+    @Test
+    fun `样本翻译：无可读线索返回空（UI 落到手动输入）`() {
+        assertTrue(UserRuleStore.presentableSamples(listOf("androidx.recyclerview.widget.RecyclerView")).isEmpty())
+    }
+
+    @Test
+    fun `样本翻译：desc 跳过广告判为推荐`() {
+        val opts = UserRuleStore.presentableSamples(listOf("@跳过广告"))
+        assertEquals("DESC", opts[0].kind)
+        assertTrue(opts[0].recommended)
+    }
+
+    @Test
+    fun `倒计时变体：跳过 5 判为推荐`() {
+        val opts = UserRuleStore.presentableSamples(listOf("跳过 5"))
+        assertTrue(opts[0].recommended)
+    }
 }

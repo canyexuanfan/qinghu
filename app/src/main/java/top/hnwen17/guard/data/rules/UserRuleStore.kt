@@ -115,8 +115,47 @@ class UserRuleStore {
         return pack.toString().toByteArray(Charsets.UTF_8)
     }
 
+    /** 向导证据选项：把原始观察样本翻译成用户能看懂的选项。 */
+    data class SampleOption(val kind: String, val value: String, val label: String, val recommended: Boolean)
+
     companion object {
+        private val CLASS_LIKE = Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+){1,}$")
+        private val SKIP_TEXT = Regex("^(跳过(广告)?(\\s*\\d{1,3})?|Skip)$", RegexOption.IGNORE_CASE)
         private const val FILE = "user_rules.json"
+
+        /**
+         * 把观察样本翻译成小白可读的证据选项：
+         * - 类名样式串（android.widget.FrameLayout）对用户无意义，不出现；
+         * - 「跳过/跳过 N/跳过广告/Skip」标记为推荐并排序最前；
+         * - #viewId / @desc 保留为进阶选项，附中文说明。
+         */
+        fun presentableSamples(samples: List<String>): List<SampleOption> {
+            val out = mutableListOf<SampleOption>()
+            for (raw in samples.distinct()) {
+                val s = raw.trim()
+                if (s.isEmpty()) continue
+                when {
+                    s.startsWith("#") -> {
+                        val v = s.substringAfter("#").trim()
+                        if (v.isNotEmpty()) out.add(SampleOption("VIEW_ID", v, "控件标识：$v（进阶选项）",
+                            v.lowercase().contains("skip") || v.lowercase().contains("close")))
+                    }
+                    s.startsWith("@") -> {
+                        val v = s.substringAfter("@").trim()
+                        if (v.isNotEmpty()) out.add(SampleOption("DESC", v, "按钮描述：$v",
+                            SKIP_TEXT.matches(v) || v.contains("关闭广告")))
+                    }
+                    else -> {
+                        if (CLASS_LIKE.matches(s)) continue
+                        out.add(SampleOption("TEXT", s,
+                            if (SKIP_TEXT.matches(s)) "「$s」——推荐，这就是跳过按钮" else "页面文字：$s",
+                            SKIP_TEXT.matches(s)))
+                    }
+                }
+            }
+            return out.sortedBy { when { it.recommended && it.kind == "TEXT" -> 0; it.recommended -> 1; else -> 2 } }
+        }
+
         private val RISKY_COMMON_WORDS = setOf("确定", "取消", "知道了", "我知道了", "确认", "是", "否", "好的")
 
         /** 向导提示：证据文字是否属于通用词（UI 提示误触风险，不阻止创建）。 */
