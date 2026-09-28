@@ -26,7 +26,9 @@ class UserRuleStore {
         val matchKind: String,   // TEXT / VIEW_ID / DESC
         val createdAt: Long,
         val enabled: Boolean = true,
-        val note: String = ""    // 来源窗口类名，便于识别
+        val note: String = "",    // 来源窗口类名，便于识别
+        /** false=不点播放器的「跳过片头/片尾」（默认）；true=一起点击。 */
+        val excludePlayerSkips: Boolean = true
     )
 
     private val rules = mutableListOf<UserRule>()
@@ -34,7 +36,8 @@ class UserRuleStore {
     val all: StateFlow<List<UserRule>> = _all.asStateFlow()
 
     @Synchronized
-    fun add(packageName: String, buttonText: String, matchKind: String, note: String): UserRule {
+    fun add(packageName: String, buttonText: String, matchKind: String, note: String,
+            excludePlayerSkips: Boolean = true): UserRule {
         // 同目标同证据去重：重复创建等于更新
         rules.removeAll { it.packageName == packageName && it.buttonText == buttonText && it.matchKind == matchKind }
         val r = UserRule(
@@ -44,7 +47,8 @@ class UserRuleStore {
             matchKind = matchKind,
             createdAt = System.currentTimeMillis(),
             enabled = true,
-            note = note.take(80)
+            note = note.take(80),
+            excludePlayerSkips = excludePlayerSkips
         )
         rules.add(r)
         _all.value = rules.toList()
@@ -54,9 +58,9 @@ class UserRuleStore {
     /** 持久化恢复：保留原 id 与启用状态。 */
     @Synchronized
     fun restore(id: String, packageName: String, buttonText: String, matchKind: String,
-                createdAt: Long, enabled: Boolean, note: String) {
+                createdAt: Long, enabled: Boolean, note: String, excludePlayerSkips: Boolean = true) {
         if (rules.any { it.id == id }) return
-        rules.add(UserRule(id, packageName, buttonText, matchKind, createdAt, enabled, note.take(80)))
+        rules.add(UserRule(id, packageName, buttonText, matchKind, createdAt, enabled, note.take(80), excludePlayerSkips))
         _all.value = rules.toList()
     }
 
@@ -103,6 +107,11 @@ class UserRuleStore {
             if (r.matchKind == "TEXT") {
                 rule.put("postcondition", JSONObject()
                     .put("absentTextEquals", r.buttonText).put("timeoutMs", 1000))
+            }
+            if (r.matchKind == "TEXT_CONTAINS" && r.excludePlayerSkips) {
+                // 包含匹配「跳过」会命中播放器的「跳过片头/片尾」——默认排除
+                rule.put("match", rule.getJSONObject("match")
+                    .put("textNotContains", org.json.JSONArray().put("片头").put("片尾")))
             }
             arr.put(rule)
         }

@@ -216,6 +216,11 @@ object RuleMatcher {
             if (text.toByteArray(Charsets.UTF_8).size > RuleLimits.MAX_STRING_BYTES) return false
             if (!text.contains(cond.textContains)) return false
         }
+        // 排除子串：命中任一（如「片头/片尾」）则匹配失败——防自建规则误点播放器功能按钮
+        if (cond.textNotContains != null) {
+            val text = node.text ?: return false
+            if (cond.textNotContains.any { text.contains(it) }) return false
+        }
         // QH-P18：contentDescription 匹配（部分 SDK 跳过控件只有 desc 没有文本）
         if (cond.descContains != null) {
             val desc = node.desc ?: return false

@@ -44,6 +44,8 @@ data class UiRule(
         val classNameSuffix: String?,
         val textEquals: String?,
         val textContains: String?,
+        /** 排除子串：命中任一则整个匹配失败（如「片头/片尾」排除播放器功能按钮）。 */
+        val textNotContains: List<String>? = null,
         /** QH-P18：contentDescription 包含匹配（部分 SDK 跳过控件只有 desc）。 */
         val descContains: String?,
         val clickable: Boolean?,

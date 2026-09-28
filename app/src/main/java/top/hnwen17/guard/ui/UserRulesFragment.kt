@@ -122,37 +122,80 @@ class UserRulesFragment : Fragment() {
             .setNegativeButton("取消", null).show()
     }
 
-    // ── 第 2 步：选跳过按钮的证据 ──
+    // ── 第 2 步：证据选择（样本翻译 + 自动推荐 + 片头片尾勾选 + 范围）──
     private fun chooseEvidence(o: top.hnwen17.guard.data.records.ObserveStore.Observation) {
         val ctx = requireContext()
-        val samples = o.samples.filter { it.isNotBlank() }.distinct()
-        val MANUAL = "✍️ 手动输入按钮上的文字"
-        val items = (samples + MANUAL).toTypedArray()
-        android.app.AlertDialog.Builder(ctx).setTitle("广告上「跳过」按钮的文字是？")
-            .setItems(items) { _, which ->
-                if (which == samples.size) {
-                    val input = EditText(ctx).apply { inputType = InputType.TYPE_CLASS_TEXT; hint = "例如：跳过" }
-                    android.app.AlertDialog.Builder(ctx).setTitle("输入按钮文字")
-                        .setView(input)
-                        .setPositiveButton("确定") { _, _ ->
-                            val t = input.text.toString().trim()
-                            if (t.isEmpty()) Toast.makeText(ctx, "文字为空，已取消", Toast.LENGTH_SHORT).show()
-                            else chooseScope(o, t, "TEXT")
-                        }
-                        .setNegativeButton("取消", null).show()
-                } else {
-                    val raw = samples[which]
-                    when {
-                        raw.startsWith("#") -> chooseScope(o, raw.substringAfter("#").trim(), "VIEW_ID")
-                        raw.startsWith("@") -> chooseScope(o, raw.substringAfter("@").trim(), "DESC")
-                        else -> chooseScope(o, raw.trim(), "TEXT")
+        val options = top.hnwen17.guard.data.rules.UserRuleStore.presentableSamples(o.samples)
+        val recommended = options.firstOrNull { it.recommended }
+
+        // 构建勾选区（片头片尾默认不点）
+        val container = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 24, 48, 0) }
+        val playerCb = android.widget.CheckBox(ctx).apply {
+            text = "同时点击「跳过片头/片尾」（视频功能按钮，默认不点）"
+            textSize = 14f
+        }
+        if (recommended != null) {
+            // 一键路径：检测到跳过按钮 → 勾选片头片尾 → 选范围 → 完成
+            container.addView(android.widget.TextView(ctx).apply {
+                text = "检测到跳过按钮「${recommended.value}」"
+                textSize = 15f
+            })
+            container.addView(playerCb)
+            android.app.AlertDialog.Builder(ctx).setTitle("确认创建规则")
+                .setView(container)
+                .setPositiveButton("在此应用生效") { _, _ ->
+                    finishCreate(o.packageName, recommended, playerCb.isChecked, o)
+                }
+                .setNeutralButton("在所有应用生效") { _, _ ->
+                    finishCreate("*", recommended, playerCb.isChecked, o)
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        } else {
+            // 无推荐：列全部选项 + 手动输入兜底
+            val MANUAL = "✍️ 手动输入按钮上的文字"
+            val items = (options.map { it.label } + MANUAL).toTypedArray()
+            android.app.AlertDialog.Builder(ctx).setTitle("广告上「跳过」按钮的文字是？")
+                .setItems(items) { _, which ->
+                    if (which == options.size) {
+                        val input = EditText(ctx).apply { inputType = InputType.TYPE_CLASS_TEXT; hint = "例如：跳过" }
+                        android.app.AlertDialog.Builder(ctx).setTitle("输入按钮文字")
+                            .setView(input)
+                            .setPositiveButton("确定") { _, _ ->
+                                val t = input.text.toString().trim()
+                                if (t.isEmpty()) Toast.makeText(ctx, "文字为空，已取消", Toast.LENGTH_SHORT).show()
+                                else chooseScope(o, t, "TEXT")
+                            }
+                            .setNegativeButton("取消", null).show()
+                    } else {
+                        container.addView(playerCb)
+                        android.app.AlertDialog.Builder(ctx).setTitle("确认创建规则")
+                            .setView(container)
+                            .setPositiveButton("在此应用生效") { _, _ ->
+                                finishCreate(o.packageName, options[which], playerCb.isChecked, o)
+                            }
+                            .setNeutralButton("在所有应用生效") { _, _ ->
+                                finishCreate("*", options[which], playerCb.isChecked, o)
+                            }
+                            .setNegativeButton("取消", null).show()
                     }
                 }
-            }
-            .setNegativeButton("取消", null).show()
+                .setNegativeButton("取消", null).show()
+        }
     }
 
-    // ── 第 3 步：选作用范围并生成 ──
+    /** 创建规则并生效。 */
+    private fun finishCreate(pkg: String, opt: top.hnwen17.guard.data.rules.UserRuleStore.SampleOption,
+                             excludePlayerSkips: Boolean, o: top.hnwen17.guard.data.records.ObserveStore.Observation) {
+        val ctx = requireContext()
+        app().userRuleStore.add(pkg, opt.value, opt.kind, o.className, excludePlayerSkips)
+        top.hnwen17.guard.data.rules.UserRuleStore.save(ctx, app().userRuleStore)
+        app().ruleRuntime.reload(ctx)
+        render()
+        Toast.makeText(ctx, "规则已创建并生效，下次遇到同款广告将自动跳过", Toast.LENGTH_LONG).show()
+    }
+
+    // ── 第 3 步：手动输入路径（走归一化 + 范围选择）──
     private fun chooseScope(o: top.hnwen17.guard.data.records.ObserveStore.Observation, rawEvidence: String, rawKind: String) {
         val ctx = requireContext()
         // 手动输入的倒计时变体同样归一化（5秒跳过→包含匹配「跳过」）

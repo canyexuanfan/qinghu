@@ -288,13 +288,14 @@ object RuleParser {
     }
 
     private fun mapMatch(obj: Map<String, JsonValue>): UiRule.MatchCondition {
-        checkUnknownKeys(obj, setOf("viewId", "viewIdContains", "className", "classNameSuffix", "textEquals", "textContains", "descContains", "clickable", "parentViewId", "maxWidth", "maxHeight", "textEmpty", "windowTextContainsAny", "windowTextEqualsAny", "windowHasNumericText", "windowViewIdContainsAny", "ancestorViewIdContainsAny", "childCountMax", "childCountEquals", "lastChild", "siblingTextContainsAny", "activityIds", "excludeActivityIds", "maxDepth"), "match")
+        checkUnknownKeys(obj, setOf("viewId", "viewIdContains", "className", "classNameSuffix", "textEquals", "textContains", "textNotContains", "descContains", "clickable", "parentViewId", "maxWidth", "maxHeight", "textEmpty", "windowTextContainsAny", "windowTextEqualsAny", "windowHasNumericText", "windowViewIdContainsAny", "ancestorViewIdContainsAny", "childCountMax", "childCountEquals", "lastChild", "siblingTextContainsAny", "activityIds", "excludeActivityIds", "maxDepth"), "match")
         val viewId = optStr(obj, "viewId")
         val viewIdContains = optStr(obj, "viewIdContains")
         val className = optStr(obj, "className")
         val classNameSuffix = optStr(obj, "classNameSuffix")
         val textEquals = optStr(obj, "textEquals")
         val textContains = optStr(obj, "textContains")
+        val textNotContains = optStrList(obj, "textNotContains")
         val descContains = optStr(obj, "descContains")
         val clickable = (obj["clickable"] as? JsonValue.Bool)?.value
         val parentViewId = optStr(obj, "parentViewId")
@@ -322,13 +323,13 @@ object RuleParser {
             }
         }
         val maxDepth = (optNum(obj, "maxDepth") ?: RuleLimits.DEFAULT_MAX_DEPTH.toLong()).toInt()
-        if (viewId == null && viewIdContains == null && className == null && classNameSuffix == null && textEquals == null && textContains == null && descContains == null && clickable == null && maxWidth == null && maxHeight == null && textEmpty == null && windowTextContainsAny == null && windowTextEqualsAny == null && windowHasNumericText == null && windowViewIdContainsAny == null && ancestorViewIdContainsAny == null && childCountMax == null && childCountEquals == null && lastChild == null && siblingTextContainsAny == null && activityIds == null && excludeActivityIds == null) {
+        if (viewId == null && viewIdContains == null && className == null && classNameSuffix == null && textEquals == null && textContains == null && textNotContains == null && descContains == null && clickable == null && maxWidth == null && maxHeight == null && textEmpty == null && windowTextContainsAny == null && windowTextEqualsAny == null && windowHasNumericText == null && windowViewIdContainsAny == null && ancestorViewIdContainsAny == null && childCountMax == null && childCountEquals == null && lastChild == null && siblingTextContainsAny == null && activityIds == null && excludeActivityIds == null) {
             throw MapError(RuleErrorCode.MISSING_REQUIRED_FIELD, "match has no condition")
         }
         if (maxDepth < 1 || maxDepth > RuleLimits.MAX_NESTING_DEPTH) {
             throw MapError(RuleErrorCode.NESTING_TOO_DEEP, "maxDepth=$maxDepth")
         }
-        return UiRule.MatchCondition(viewId, viewIdContains, className, classNameSuffix, textEquals, textContains, descContains, clickable, parentViewId, maxWidth, maxHeight, textEmpty, windowTextContainsAny, windowTextEqualsAny, windowHasNumericText, windowViewIdContainsAny, ancestorViewIdContainsAny, childCountMax, childCountEquals, lastChild, siblingTextContainsAny, activityIds, excludeActivityIds, maxDepth)
+        return UiRule.MatchCondition(viewId, viewIdContains, className, classNameSuffix, textEquals, textContains, textNotContains, descContains, clickable, parentViewId, maxWidth, maxHeight, textEmpty, windowTextContainsAny, windowTextEqualsAny, windowHasNumericText, windowViewIdContainsAny, ancestorViewIdContainsAny, childCountMax, childCountEquals, lastChild, siblingTextContainsAny, activityIds, excludeActivityIds, maxDepth)
     }
 
     private fun mapAction(obj: Map<String, JsonValue>): UiRule.RuleAction {
