@@ -95,6 +95,7 @@ class UserRuleStore {
                 .put("match", when (r.matchKind) {
                     "VIEW_ID" -> JSONObject().put("viewId", r.buttonText).put("clickable", true)
                     "DESC" -> JSONObject().put("descContains", r.buttonText)
+                    "TEXT_CONTAINS" -> JSONObject().put("textContains", r.buttonText)
                     else -> JSONObject().put("textEquals", r.buttonText)
                 })
                 .put("action", JSONObject()
@@ -121,6 +122,21 @@ class UserRuleStore {
     companion object {
         private val CLASS_LIKE = Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+){1,}$")
         private val SKIP_TEXT = Regex("^(跳过(广告)?(\\s*\\d{1,3})?|Skip)$", RegexOption.IGNORE_CASE)
+        private val COUNTDOWN_DIGITS = Regex("\\d{1,2}\\s*秒?")
+
+        /**
+         * 倒计时归一化：「5秒跳过/4秒跳过/…/1秒跳过/跳过5/跳过 5秒」是同一个按钮的
+         * 倒计时形态——精确匹配（textEquals）只在倒计时走到那一秒时命中，其余全漏
+         * （用户真机反馈）。归一化为包含匹配（textContains 基础文字）：任何秒数都命中。
+         * 「跳过片头/片尾」含保护性排除（播放器功能按钮不得误点）。
+         */
+        fun normalizeEvidence(text: String, kind: String): Pair<String, String> {
+            if (kind != "TEXT") return text to kind
+            val t = text.trim()
+            if (!t.contains("跳过") || t.contains("片头") || t.contains("片尾")) return t to kind
+            val base = COUNTDOWN_DIGITS.replace(t, "").trim()
+            return if (base.isNotEmpty() && base != t) base to "TEXT_CONTAINS" else t to kind
+        }
         private const val FILE = "user_rules.json"
 
         /**
@@ -147,13 +163,24 @@ class UserRuleStore {
                     }
                     else -> {
                         if (CLASS_LIKE.matches(s)) continue
-                        out.add(SampleOption("TEXT", s,
-                            if (SKIP_TEXT.matches(s)) "「$s」——推荐，这就是跳过按钮" else "页面文字：$s",
-                            SKIP_TEXT.matches(s)))
+                        val (value, kind) = normalizeEvidence(s, "TEXT")
+                        val label = when (kind) {
+                            "TEXT_CONTAINS" -> "「跳过」按钮（自动适配倒计时变化）"
+                            "TEXT" -> if (SKIP_TEXT.matches(s)) "「$s」——推荐，这就是跳过按钮" else "页面文字：$s"
+                            else -> s
+                        }
+                        val recommended = (value.contains("跳过") && !value.contains("片头") && !value.contains("片尾")) ||
+                            value.equals("Skip", true)
+                        out.add(SampleOption(kind, value, label, recommended))
                     }
                 }
             }
-            return out.sortedBy { when { it.recommended && it.kind == "TEXT" -> 0; it.recommended -> 1; else -> 2 } }
+            // 归一化去重：5秒跳过/4秒跳过/…合并为同一条；包含匹配覆盖精确匹配时去掉冗余
+            val deduped = out.distinctBy { it.kind to it.value }.toMutableList()
+            if (deduped.any { it.kind == "TEXT_CONTAINS" && it.value == "跳过" }) {
+                deduped.removeAll { it.kind == "TEXT" && it.value == "跳过" }
+            }
+            return deduped.sortedBy { when { it.recommended && it.kind != "VIEW_ID" -> 0; it.recommended -> 1; else -> 2 } }
         }
 
         private val RISKY_COMMON_WORDS = setOf("确定", "取消", "知道了", "我知道了", "确认", "是", "否", "好的")

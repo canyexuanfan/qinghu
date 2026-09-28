@@ -54,7 +54,7 @@ object AppUpdateChecker {
                 if (name.endsWith(".apk") && name.contains("standard")) { apkUrl = a.optString("browser_download_url"); break }
             }
             if (apkUrl.isEmpty()) { lastError = "发布缺少安装包"; return null }
-            LatestRelease(tag, apkUrl, json.optString("body").take(600))
+            LatestRelease(tag, apkUrl, plainText(json.optString("body")).take(600))
         } catch (e: Exception) {
             lastError = "连接失败：" + (e.message?.take(60) ?: "网络不可达")
             null
@@ -77,6 +77,34 @@ object AppUpdateChecker {
             lastError = "连接失败：" + (e.message?.take(60) ?: "网络不可达")
             null
         }
+    }
+
+    /**
+     * GitHub Release 正文（Markdown）→ 弹窗纯文本：
+     * 标题去 #、粗体/斜体/代码符号剥离、表格行转「a · b」（分隔行丢弃）、
+     * 链接转「文字（网址）」、列表符 - 改 ·、压缩多余空行。
+     * GitHub 网页端渲染 Markdown 不受影响；此清理仅用于应用内弹窗。
+     */
+    fun plainText(markdown: String): String {
+        val lines = markdown.lines().mapNotNull { raw ->
+            val t = raw.trim()
+            when {
+                t.isEmpty() -> ""
+                t.startsWith("#") -> t.trimStart('#').trim()
+                Regex("^\\|?[\\s:|-]+\\|?$").matches(t) -> null
+                t.startsWith("|") -> t.trim('|').split('|')
+                    .joinToString(" · ") { it.trim() }.removeSuffix(" ·")
+                else -> t
+            }
+        }
+        return lines.joinToString("\n")
+            .replace(Regex("\\*\\*([^*]+)\\*\\*"), "$1")
+            .replace(Regex("\\*([^*\\n]+)\\*"), "$1")
+            .replace(Regex("`([^`]*)`"), "$1")
+            .replace(Regex("\\[([^\\]]+)]\\(([^)\\s]+)\\)"), "$1（$2）")
+            .replace(Regex("^- ", RegexOption.MULTILINE), "· ")
+            .replace(Regex("\n{3,}"), "\n\n")
+            .trim()
     }
 
     /** 语义比较：latest 是否新于 current（按数字分段，缺失段补 0）。 */

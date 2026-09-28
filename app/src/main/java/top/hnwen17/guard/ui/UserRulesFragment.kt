@@ -153,8 +153,10 @@ class UserRulesFragment : Fragment() {
     }
 
     // ── 第 3 步：选作用范围并生成 ──
-    private fun chooseScope(o: top.hnwen17.guard.data.records.ObserveStore.Observation, evidence: String, kind: String) {
+    private fun chooseScope(o: top.hnwen17.guard.data.records.ObserveStore.Observation, rawEvidence: String, rawKind: String) {
         val ctx = requireContext()
+        // 手动输入的倒计时变体同样归一化（5秒跳过→包含匹配「跳过」）
+        val (evidence, kind) = top.hnwen17.guard.data.rules.UserRuleStore.normalizeEvidence(rawEvidence, rawKind)
         if (kind == "TEXT" && top.hnwen17.guard.data.rules.UserRuleStore.isRiskyCommonWord(evidence)) {
             Toast.makeText(ctx, "「$evidence」是常见按钮文字，建议只在本应用内生效", Toast.LENGTH_LONG).show()
         }
