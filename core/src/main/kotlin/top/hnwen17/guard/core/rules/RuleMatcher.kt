@@ -46,7 +46,9 @@ data class WindowSnapshot(
     /** QH-阶段1：已确认的 Activity 全类名（仅 TYPE_WINDOW_STATE_CHANGED 事件填充）。 */
     val activityId: String? = null,
     /** 上述 activityId 是否可靠（true=来自窗口状态变更事件；false=无法确认，activityIds 规则 fail-closed）。 */
-    val activityConfirmed: Boolean = false
+    val activityConfirmed: Boolean = false,
+    /** 同 App 近几秒内其他子视图的文字聚合（跨子视图门禁：广告标签与跳过按钮可能在不同子视图）。 */
+    val recentAppText: String = ""
 )
 
 object RuleMatcher {
@@ -112,6 +114,13 @@ object RuleMatcher {
                 val ids = if (needIds) StringBuilder() else null
                 var hasNumeric = false
                 walk(snapshot.root, texts, equalsSet, ids) { t -> if (needNumeric && !hasNumeric && NUMERIC.matches(t)) hasNumeric = true }
+                // 跨子视图聚合：同 App 近几秒内其他子视图的文字也参与门禁
+                // （广告标签与跳过按钮可能在不同子视图，单窗口匹配会漏）
+                if (needText && snapshot.recentAppText.isNotBlank()) {
+                    snapshot.recentAppText.lowercase().lines().forEach { line ->
+                        if (line.isNotBlank()) texts?.append(line)?.append('\n')
+                    }
+                }
                 return WindowCtx(texts?.toString(), equalsSet, hasNumeric, ids?.toString())
             }
 

@@ -58,6 +58,44 @@ class RuleRuntime(
     /** 最近一次广告控件点击时间（clock 域）：跳转来源识别信号（3 秒内的拉起视为广告链路） */
     @Volatile var lastAdActionAtMs: Long = 0L
 
+    /** 同 App 跨子视图文字聚合（包名→近 15s 所有子视图文字拼接，4KB 上限）。
+     *  广告标签与跳过按钮可能在不同子视图（WebView/Dialog/ViewPager），单窗口匹配会漏。 */
+    private val appRecentText = HashMap<String, String>()
+    private val appRecentTextAt = HashMap<String, Long>()
+
+    /** 更新并获取同 App 近期聚合文字（后台线程调用）。 */
+    private fun mergeAppText(pkg: String, currentNodeText: String): String {
+        val now = clock.nowMs()
+        val existing = appRecentText[pkg] ?: ""
+        // 合并：新文字追加到已有缓冲（去重行）
+        val merged = if (existing.isEmpty()) currentNodeText else {
+            val existingLines = existing.lines().toSet()
+            val newLines = currentNodeText.lines().filter { it.isNotBlank() && it !in existingLines }
+            if (newLines.isEmpty()) existing else existing + "\n" + newLines.joinToString("\n")
+        }
+        appRecentText[pkg] = merged.takeLast(4096)
+        appRecentTextAt[pkg] = now
+        return merged.takeLast(4096)
+    }
+
+    /** 获取同 App 近期聚合文字（15 秒过期）。 */
+    private fun getRecentAppText(pkg: String): String {
+        val at = appRecentTextAt[pkg] ?: return ""
+        if (clock.nowMs() - at > 15_000) { appRecentText.remove(pkg); return "" }
+        return appRecentText[pkg] ?: ""
+    }
+
+    /** 从快照树提取全部文本（跨子视图聚合用）。 */
+    private fun extractSnapshotText(root: top.hnwen17.guard.core.rules.SnapshotNode): String {
+        val sb = StringBuilder()
+        fun walk(n: top.hnwen17.guard.core.rules.SnapshotNode) {
+            n.text?.takeIf { it.isNotBlank() }?.let { sb.append(it.trim()).append('\n') }
+            n.children.forEach { walk(it) }
+        }
+        walk(root)
+        return sb.toString()
+    }
+
     /** QH-P18 全局点击限流：跨规则 10 秒窗口内最多 3 次点击（用户报告「反复操作屏幕致失去控制」）。 */
     private val globalClickTimes = ArrayDeque<Long>()
     /** 跳转来源识别：距最近一次广告控件点击是否不超过 [withinMs]。 */
@@ -344,7 +382,10 @@ class RuleRuntime(
             val wcM = event as? top.hnwen17.guard.core.engine.GuardEvent.WindowChanged
             val confirmedM = wcM != null && (wcM.eventTypes and android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) != 0
             val activityNameM = if (confirmedM) event.session.classNameHint else null
-            val windowSnapshot = WindowSnapshot(event.session.packageName, versionCode = 1, root = live.rootSnapshot, activityId = activityNameM, activityConfirmed = confirmedM)
+            // 同 App 跨子视图文字聚合：当前窗口文字合并到缓冲，连同缓冲一起传给 WindowSnapshot
+            // （广告标签与跳过按钮可能在不同子视图——单窗口匹配会漏）
+            val recentText = mergeAppText(event.session.packageName, extractSnapshotText(live.rootSnapshot))
+            val windowSnapshot = WindowSnapshot(event.session.packageName, versionCode = 1, root = live.rootSnapshot, activityId = activityNameM, activityConfirmed = confirmedM, recentAppText = recentText)
             val candidates = idx.candidatesFor(event.session.packageName, versionCode = 1, activityId = activityNameM, activityConfirmed = confirmedM)
             if (candidates.isEmpty()) { logAction("match skip: no candidates for ${event.session.packageName}"); return null }
             val matches = RuleMatcher.findMatches(candidates, windowSnapshot)
