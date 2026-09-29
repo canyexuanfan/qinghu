@@ -9,17 +9,23 @@ import javax.net.ssl.HttpsURLConnection
 /**
  * 应用自更新检查（用户主动点击才联网，QH-隐私定位：默认不联网）。
  *
- * 双路径（真机反馈 api.github.com 在共享代理出口易触发 60/h 限速）：
- * - 主路径：api.github.com/releases/latest（含更新说明 body）；
- * - 备路径：github.com/releases/latest 的 302 Location 解析版本号（无 API 限速），
- *   附件名按发布约定构造：qinghu-standard-vX.Y.Z.apk。
- * lastError 记录最近一次失败原因，供 UI 透出诊断。
+ * 四路径轮询+短超时快速降级（真机反馈：api.github.com 共享代理出口 60/h 限速、
+ * GitHub 域名在无代理网络直连不可达）：
+ * 1. cdn.jsdelivr.net（国内可达 CDN）：仓库 update-check.json（发布流程同步维护）
+ * 2. fastly.jsdelivr.net（CDN 备源）
+ * 3. api.github.com/releases/latest（含更新说明 body，有 60/h 限速）
+ * 4. github.com/releases/latest 302 Location 解析版本号（无 API 限速）
+ * lastError 记录最后失败路径原因，供 UI 透出诊断。
  */
 object AppUpdateChecker {
 
     const val AUTHOR_SITE = "https://www.hnwen17.top"
     private const val API_LATEST = "https://api.github.com/repos/canyexuanfan/qinghu/releases/latest"
     private const val PAGE_LATEST = "https://github.com/canyexuanfan/qinghu/releases/latest"
+    private const val CDN_MAIN = "https://cdn.jsdelivr.net/gh/canyexuanfan/qinghu@main/update-check.json"
+    private const val CDN_FASTLY = "https://fastly.jsdelivr.net/gh/canyexuanfan/qinghu@main/update-check.json"
+    private const val GHPROXY_RAW = "https://ghproxy.net/https://raw.githubusercontent.com/canyexuanfan/qinghu/main/update-check.json"
+    private const val GHPROXY = "https://ghproxy.net/"
 
     data class LatestRelease(val version: String, val apkUrl: String, val notes: String)
 
@@ -27,20 +33,54 @@ object AppUpdateChecker {
     @Volatile var lastError: String = ""
         private set
 
-    /** 联网检查最新 Release：主路径 API → 备路径重定向。失败返回 null（lastError 有原因）。 */
-    fun fetchLatest(): LatestRelease? {
+    /**
+     * 联网检查最新 Release：CDN×2 → ghproxy→raw → API → 重定向，共 5 路径。
+     * CDN 可达但版本不新时不直接返回（jsdelivr @main 分支缓存最长 12h，连发日会滞后），
+     * 先记为兜底、继续走 GitHub 路径；GitHub 全挂时用 CDN 兜底结果。
+     * 失败返回 null（lastError 有原因）。
+     */
+    fun fetchLatest(currentVersion: String): LatestRelease? {
+        var cdnFallback: LatestRelease? = null
+        for (url in listOf(CDN_MAIN, CDN_FASTLY)) {
+            val r = fetchViaCdn(url) ?: continue
+            if (isNewer(r.version, currentVersion)) { lastError = ""; return r }
+            if (cdnFallback == null) cdnFallback = r
+        }
+        fetchViaCdn(GHPROXY_RAW)?.let { r ->
+            if (isNewer(r.version, currentVersion)) { lastError = ""; return r }
+        }
         fetchViaApi()?.let { lastError = ""; return it }
-        val viaRedirect = fetchViaRedirect()
-        if (viaRedirect == null && lastError.isEmpty()) lastError = "网络连接失败"
-        return viaRedirect
+        fetchViaRedirect()?.let { lastError = ""; return it }
+        cdnFallback?.let { lastError = ""; return it }
+        if (lastError.isEmpty()) lastError = "网络连接失败"
+        return null
     }
 
-    /** 主路径：GitHub API（带更新说明）。 */
+    /** 主路径：jsdelivr CDN 读 update-check.json（国内可达，无墙无限速）。 */
+    private fun fetchViaCdn(url: String): LatestRelease? {
+        return try {
+            val conn = URL(url).openConnection() as HttpsURLConnection
+            conn.connectTimeout = 5_000
+            conn.readTimeout = 8_000
+            val code = conn.responseCode
+            if (code !in 200..299) { lastError = "CDN HTTP " + code; return null }
+            val json = JSONObject(conn.inputStream.use { it.readBytes().toString(Charsets.UTF_8) })
+            val ver = json.optString("latest_version").removePrefix("v").trim()
+            val apk = json.optString("apk_url").trim()
+            if (ver.isEmpty() || apk.isEmpty()) { lastError = "CDN 数据不完整"; return null }
+            LatestRelease(ver, apk, json.optString("notes", ""))
+        } catch (_: Exception) {
+            lastError = "CDN 不可达"
+            null
+        }
+    }
+
+    /** 备路径：GitHub API（带更新说明，60/h 限速）。 */
     private fun fetchViaApi(): LatestRelease? {
         return try {
             val conn = URL(API_LATEST).openConnection() as HttpsURLConnection
-            conn.connectTimeout = 10_000
-            conn.readTimeout = 15_000
+            conn.connectTimeout = 6_000
+            conn.readTimeout = 10_000
             conn.setRequestProperty("Accept", "application/vnd.github+json")
             val code = conn.responseCode
             if (code !in 200..299) { lastError = "HTTP " + code; return null }
@@ -61,12 +101,12 @@ object AppUpdateChecker {
         }
     }
 
-    /** 备路径：releases/latest 页面 302 的 Location 解析 tag（避开 api.github.com 限速）。 */
+    /** 末路径：releases/latest 页面 302 的 Location 解析 tag（避开 api.github.com 限速）。 */
     private fun fetchViaRedirect(): LatestRelease? {
         return try {
             val conn = URL(PAGE_LATEST).openConnection() as HttpsURLConnection
-            conn.connectTimeout = 10_000
-            conn.readTimeout = 15_000
+            conn.connectTimeout = 6_000
+            conn.readTimeout = 10_000
             conn.instanceFollowRedirects = false
             val loc = conn.getHeaderField("Location")
             if (loc.isNullOrEmpty()) { lastError = "无法获取最新版本"; return null }
@@ -118,11 +158,15 @@ object AppUpdateChecker {
         return false
     }
 
-    /** 下载安装包到外部私有目录；onProgress 回调 0-100（调用方保证 IO 线程）。 */
+    /** 下载安装包到外部私有目录：直连 → ghproxy 镜像；onProgress 回调 0-100（调用方保证 IO 线程）。 */
     fun downloadApk(context: Context, url: String, onProgress: (Int) -> Unit): File? {
+        return downloadOnce(context, url, onProgress) ?: downloadOnce(context, GHPROXY + url, onProgress)
+    }
+
+    private fun downloadOnce(context: Context, url: String, onProgress: (Int) -> Unit): File? {
         return try {
             val conn = URL(url).openConnection() as HttpsURLConnection
-            conn.connectTimeout = 10_000
+            conn.connectTimeout = 15_000
             conn.readTimeout = 60_000
             if (conn.responseCode !in 200..299) return null
             val total = conn.contentLengthLong

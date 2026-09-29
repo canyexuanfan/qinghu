@@ -44,4 +44,15 @@ class AppUpdateCheckerTest {
         assertFalse(out.contains("\n\n\n"))
         assertEquals("a\n\nb", out)
     }
+
+    /** 更新源数据格式契约：update-check.json 字段缺失/带 v 前缀时的容错。 */
+    @Test
+    fun `版本比较语义化且容错`() {
+        assertTrue(AppUpdateChecker.isNewer("0.5.3", "0.5.2"))
+        assertTrue(AppUpdateChecker.isNewer("v0.6.0", "0.5.9"))
+        assertTrue(AppUpdateChecker.isNewer("0.5.10", "0.5.9"))
+        assertFalse(AppUpdateChecker.isNewer("0.5.2", "0.5.2"))
+        assertFalse(AppUpdateChecker.isNewer("0.5.2", "0.5.3"))
+        assertFalse(AppUpdateChecker.isNewer("0.5", "0.5.1"))
+    }
 }

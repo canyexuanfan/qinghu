@@ -249,7 +249,7 @@ class SettingsFragment : BoundFragment<FragmentSettingsBinding>(FragmentSettings
         wait.show()
         lifecycleScope.launch {
             val release = withContext(Dispatchers.IO) {
-                top.hnwen17.guard.platform.update.AppUpdateChecker.fetchLatest()
+                top.hnwen17.guard.platform.update.AppUpdateChecker.fetchLatest(BuildConfig.VERSION_NAME)
             }
             wait.dismiss()
             when {

@@ -1,0 +1,7 @@
+{
+  "latest_version": "0.5.3",
+  "version_code": 49,
+  "apk_url": "https://github.com/canyexuanfan/qinghu/releases/download/v0.5.3/qinghu-standard-v0.5.3.apk",
+  "notes": "检查更新稳定化：新增国内可达 CDN 更新源（jsdelivr×2 + ghproxy），GitHub API/重定向降为备用路径；下载失败自动切 ghproxy 镜像。",
+  "updated_at": "2026-09-29"
+}
