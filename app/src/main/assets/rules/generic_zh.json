@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "qinghu.builtin.generic.zh",
-  "version": 20,
+  "version": 21,
   "provenance": {
     "author": "Qinghu",
     "license": "PROJECT-OWNED",
@@ -1235,6 +1235,234 @@
         "type": "CLICK_VERIFIED_NODE",
         "maxAttempts": 2,
         "cooldownMs": 2000
+      }
+    },
+    {
+      "id": "welcome_ad_close",
+      "version": 1,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "user-observation-log-2026-09-29"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "viewId": "welcome_advertise_close",
+        "clickable": true
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 3000
+      },
+      "postcondition": {
+        "absentViewId": "welcome_advertise_close",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "welcome_ad_skip",
+      "version": 1,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "user-observation-log-2026-09-29"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textContains": "跳过",
+        "windowViewIdContainsAny": [
+          "advertise_close"
+        ]
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 3000
+      },
+      "postcondition": {
+        "absentTextEquals": "跳过",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "ubix_skip_5",
+      "version": 1,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "user-observation-log-2026-09-29"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textEquals": "跳过 5"
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 3000
+      },
+      "postcondition": {
+        "absentTextEquals": "跳过",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "ubix_skip_4",
+      "version": 1,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "user-observation-log-2026-09-29"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textEquals": "跳过 4"
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 3000
+      },
+      "postcondition": {
+        "absentTextEquals": "跳过",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "ubix_skip_3",
+      "version": 1,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "user-observation-log-2026-09-29"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textEquals": "跳过 3"
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 3000
+      },
+      "postcondition": {
+        "absentTextEquals": "跳过",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "ubix_skip_2",
+      "version": 1,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "user-observation-log-2026-09-29"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textEquals": "跳过 2"
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 3000
+      },
+      "postcondition": {
+        "absentTextEquals": "跳过",
+        "timeoutMs": 1000
+      }
+    },
+    {
+      "id": "ubix_skip_1",
+      "version": 1,
+      "provenance": {
+        "author": "Qinghu",
+        "license": "PROJECT-OWNED",
+        "source": "user-observation-log-2026-09-29"
+      },
+      "target": {
+        "package": "*",
+        "minVersionCode": 0,
+        "maxVersionCode": 999999
+      },
+      "page": {
+        "mustNotHave": [
+          "sensitive_payment",
+          "password"
+        ]
+      },
+      "match": {
+        "textEquals": "跳过 1"
+      },
+      "action": {
+        "type": "CLICK_VERIFIED_NODE",
+        "maxAttempts": 2,
+        "cooldownMs": 3000
+      },
+      "postcondition": {
+        "absentTextEquals": "跳过",
+        "timeoutMs": 1000
       }
     }
   ]
