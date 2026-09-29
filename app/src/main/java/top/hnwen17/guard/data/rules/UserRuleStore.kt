@@ -200,9 +200,8 @@ class UserRuleStore {
         fun save(context: Context, store: UserRuleStore) {
             try {
                 val dir = context.getExternalFilesDir(null)?.resolve("user_rules")?.apply { mkdirs() } ?: return
-                val bytes = store.packBytes()
                 val f = java.io.File(dir, FILE)
-                if (bytes == null) f.delete() else f.writeBytes(bytes)
+                if (store.all.value.isEmpty()) f.delete() else f.writeText(internalJson(store))
             } catch (_: Exception) { }
         }
 
@@ -210,16 +209,87 @@ class UserRuleStore {
             try {
                 val f = context.getExternalFilesDir(null)?.resolve("user_rules")?.resolve(FILE) ?: return
                 if (!f.exists()) return
-                val arr = JSONArray(f.readText())
+                hydrate(store, f.readText())
+            } catch (_: Exception) { }
+        }
+
+        /** 运行时索引用：读盘（内部全量格式）→ 转规则包字节。与 [load] 同一格式入口。 */
+        fun packFromFile(context: Context): ByteArray? {
+            return try {
+                val f = context.getExternalFilesDir(null)?.resolve("user_rules")?.resolve(FILE) ?: return null
+                if (!f.exists()) return null
+                val temp = UserRuleStore()
+                if (!hydrate(temp, f.readText())) return null
+                temp.packBytes()
+            } catch (_: Exception) { null }
+        }
+
+        /** 内部全量序列化（含停用规则、排除片头片尾、来源备注、创建时间）。 */
+        @Synchronized
+        fun internalJson(store: UserRuleStore): String {
+            val arr = JSONArray()
+            for (r in store.rules) {
+                arr.put(JSONObject()
+                    .put("id", r.id).put("packageName", r.packageName).put("buttonText", r.buttonText)
+                    .put("matchKind", r.matchKind).put("createdAt", r.createdAt).put("enabled", r.enabled)
+                    .put("note", r.note).put("excludePlayerSkips", r.excludePlayerSkips))
+            }
+            return arr.toString()
+        }
+
+        /**
+         * 恢复：内部格式（数组）优先；解析失败按旧版规则包格式导入。
+         * 返回是否恢复出至少一条规则。
+         */
+        fun hydrate(store: UserRuleStore, text: String): Boolean {
+            return try {
+                val arr = JSONArray(text)
                 for (i in 0 until arr.length()) {
                     val o = arr.getJSONObject(i)
                     store.restore(
                         o.getString("id"), o.getString("packageName"), o.getString("buttonText"),
                         o.optString("matchKind", "TEXT"), o.optLong("createdAt"),
-                        o.optBoolean("enabled", true), o.optString("note")
+                        o.optBoolean("enabled", true), o.optString("note"),
+                        o.optBoolean("excludePlayerSkips", true)
                     )
                 }
-            } catch (_: Exception) { }
+                arr.length() > 0
+            } catch (_: Exception) {
+                try {
+                    hydrateLegacyPack(store, text)
+                } catch (_: Exception) { false }
+            }
+        }
+
+        /**
+         * 旧版迁移（2026-09-29 前的文件）：save 曾误写规则包格式（仅启用规则、无 note/createdAt），
+         * 而本函数按内部数组解析必失败被空 catch 吞掉 → 更新/重启后管理页「规则消失」，
+         * 且再新建会用残缺列表覆盖整个文件（二次真删）。此处反向映射救回存量规则；
+         * 下次 save 起磁盘即为内部全量格式，不再触发本路径。
+         */
+        private fun hydrateLegacyPack(store: UserRuleStore, text: String): Boolean {
+            val pack = JSONObject(text)
+            val arr = pack.optJSONArray("rules") ?: return false
+            val fallbackCreated = pack.optLong("version", 0L) // 末次保存时间近似创建时间
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                val match = o.optJSONObject("match") ?: continue
+                val pair = when {
+                    match.has("textEquals") -> "TEXT" to match.getString("textEquals")
+                    match.has("textContains") -> "TEXT_CONTAINS" to match.getString("textContains")
+                    match.has("descContains") -> "DESC" to match.getString("descContains")
+                    match.has("viewId") -> "VIEW_ID" to match.getString("viewId")
+                    else -> null
+                } ?: continue
+                val (kind, value) = pair
+                // 包内 textNotContains 只在 excludePlayerSkips=true 时写入，据其反推
+                val exclude = kind != "TEXT_CONTAINS" || match.has("textNotContains")
+                store.restore(
+                    o.getString("id"), o.getJSONObject("target").getString("package"),
+                    value, kind, fallbackCreated, true, "", exclude
+                )
+            }
+            return arr.length() > 0
         }
     }
 }

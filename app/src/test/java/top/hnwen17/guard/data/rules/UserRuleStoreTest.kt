@@ -110,4 +110,70 @@ class UserRuleStoreTest {
         val opts = UserRuleStore.presentableSamples(listOf("跳过 5"))
         assertTrue(opts[0].recommended)
     }
+
+    // ===== 持久化（v0.5.4 起：磁盘为内部全量格式；此前读写格式分裂致更新后规则消失）=====
+
+    @Test
+    fun `内部格式回环：停用规则与排除片头片尾与备注全保留`() {
+        val store = UserRuleStore()
+        val a = store.add("com.a", "跳过", "TEXT", "SplashActivity")
+        val b = store.add("com.b", "关闭", "TEXT_CONTAINS", "AdActivity", excludePlayerSkips = false)
+        store.setEnabled(a.id, false)
+        val text = UserRuleStore.internalJson(store)
+
+        val restored = UserRuleStore()
+        assertTrue(UserRuleStore.hydrate(restored, text))
+        assertEquals(2, restored.all.value.size)
+        val ra = restored.all.value.first { it.id == a.id }
+        val rb = restored.all.value.first { it.id == b.id }
+        assertFalse(ra.enabled)
+        assertEquals("SplashActivity", ra.note)
+        assertEquals("跳过", ra.buttonText)
+        assertFalse(rb.excludePlayerSkips) // 创建时显式传 false，回环后不得变回默认 true
+        assertEquals("TEXT_CONTAINS", rb.matchKind)
+    }
+
+    @Test
+    fun `旧版规则包格式文件能救回导入（迁移路径）`() {
+        // 旧版 save 误写 packBytes() 输出（JSON 对象、仅启用规则），管理页按数组解析必失败
+        val legacy = UserRuleStore()
+        legacy.add("com.video.app", "跳过", "TEXT", "SplashActivity")
+        legacy.add("com.game.app", "点击跳过", "TEXT_CONTAINS", "GameActivity", excludePlayerSkips = false)
+        val legacyFileText = String(legacy.packBytes()!!, Charsets.UTF_8)
+
+        val restored = UserRuleStore()
+        assertTrue(UserRuleStore.hydrate(restored, legacyFileText))
+        assertEquals(2, restored.all.value.size)
+        val textRule = restored.all.value.first { it.packageName == "com.video.app" }
+        assertEquals("跳过", textRule.buttonText)
+        assertEquals("TEXT", textRule.matchKind)
+        assertTrue(textRule.enabled)
+        val containsRule = restored.all.value.first { it.packageName == "com.game.app" }
+        assertEquals("TEXT_CONTAINS", containsRule.matchKind)
+        assertFalse(containsRule.excludePlayerSkips) // 旧包无 textNotContains → 反推为不排除
+    }
+
+    @Test
+    fun `救回导入后再次打包与停用语义一致`() {
+        val legacy = UserRuleStore()
+        legacy.add("com.a", "跳过", "TEXT", "")
+        val restored = UserRuleStore()
+        UserRuleStore.hydrate(restored, String(legacy.packBytes()!!, Charsets.UTF_8))
+        // 救回的规则可正常生成规则包（运行时索引可用）
+        val ok = RuleParser.parse(restored.packBytes()!!) as RuleParser.RuleParseResult.Ok
+        assertEquals(1, ok.pack.rules.size)
+        assertEquals("跳过", ok.pack.rules[0].match.textEquals)
+        // 停用后包为空（内部格式保留停用状态，包过滤启用项）
+        restored.setEnabled(restored.all.value[0].id, false)
+        assertNull(restored.packBytes())
+        assertEquals(1, restored.all.value.size)
+    }
+
+    @Test
+    fun `乱码文件不崩溃且不误导入`() {
+        val restored = UserRuleStore()
+        assertFalse(UserRuleStore.hydrate(restored, "not json at all {"))
+        assertFalse(UserRuleStore.hydrate(restored, "{}"))
+        assertEquals(0, restored.all.value.size)
+    }
 }
