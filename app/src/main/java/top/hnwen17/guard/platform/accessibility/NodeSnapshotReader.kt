@@ -3,6 +3,7 @@ package top.hnwen17.guard.platform.accessibility
 import android.view.accessibility.AccessibilityNodeInfo
 import top.hnwen17.guard.core.rules.RuleLimits
 import top.hnwen17.guard.core.policy.SafetyExclusions
+import top.hnwen17.guard.core.rules.SnapshotAssembler
 import top.hnwen17.guard.core.rules.SnapshotNode
 
 /**
@@ -85,8 +86,7 @@ object NodeSnapshotReader {
     /** @return 整窗快照；root 不可用（窗口已切换/无权限）时返回 null。 */
     fun snapshot(root: AccessibilityNodeInfo?): SnapshotNode? {
         root ?: return null
-        val budget = IntArray(1) { RuleLimits.MAX_NODES_PER_WINDOW }
-        return readNode(root, depth = 0, budget = budget)
+        return buildBfs(root, live = null)
     }
 
     /**
@@ -96,11 +96,96 @@ object NodeSnapshotReader {
      */
     fun snapshotLive(root: AccessibilityNodeInfo?): LiveSnapshot? {
         root ?: return null
-        val budget = IntArray(1) { RuleLimits.MAX_NODES_PER_WINDOW }
         val live = mutableListOf<AccessibilityNodeInfo>()
         val map = HashMap<SnapshotNode, AccessibilityNodeInfo>()
-        val snapshot = readNode(root, depth = 0, budget = budget, live = live, map = map) ?: return null
+        val snapshot = buildBfs(root, live = live, map = map) ?: return null
         return LiveSnapshot(snapshot, live, map)
+    }
+
+    /**
+     * 层序（BFS）有界读取：先读浅层、后读深层，预算内节点数/binder 往返不变。
+     * 根因背景见 [SnapshotAssembler]：DFS 截断会让巨大素材子树挤掉同层跳过按钮。
+     */
+    private fun buildBfs(
+        root: AccessibilityNodeInfo,
+        live: MutableList<AccessibilityNodeInfo>?,
+        map: HashMap<SnapshotNode, AccessibilityNodeInfo>? = null
+    ): SnapshotNode? {
+        val liveMode = live != null
+        val recs = ArrayList<SnapshotAssembler.Rec>(64)
+        val infos = ArrayList<AccessibilityNodeInfo>(64) // 与 recs 同序；live 模式由 LiveSnapshot 释放
+        val queue = ArrayDeque<Int>()
+        try {
+            recs.add(readRec(root, depth = 0, parent = -1))
+        } catch (_: Exception) {
+            return null // 根节点立即失效：整窗放弃（与旧实现一致）
+        }
+        infos.add(root) // 根由调用方管理，不入 live/map
+        queue.add(0)
+        var budget = RuleLimits.MAX_NODES_PER_WINDOW - 1
+        while (queue.isNotEmpty()) {
+            if (budget <= 0) break
+            val parentIdx = queue.removeFirst()
+            val parent = recs[parentIdx]
+            if (parent.depth >= RuleLimits.MAX_NESTING_DEPTH) continue // 子节点将超深
+            val parentInfo = infos[parentIdx]
+            val childCount = try { parentInfo.childCount } catch (_: Exception) { 0 }
+            for (i in 0 until childCount) {
+                if (budget <= 0) break
+                val child = try { parentInfo.getChild(i) } catch (_: Exception) { null } ?: continue
+                val rec = try {
+                    readRec(child, parent.depth + 1, parentIdx)
+                } catch (_: Exception) {
+                    if (android.os.Build.VERSION.SDK_INT < 33) try { child.recycle() } catch (_: Exception) { }
+                    continue
+                }
+                recs.add(rec); infos.add(child); budget--
+                queue.add(recs.size - 1)
+                if (liveMode) live!!.add(child)
+            }
+            if (!liveMode && parentIdx != 0) {
+                // 非 live 模式：节点属性已尽其用（子树展开完成），按旧实现口径立即释放
+                if (android.os.Build.VERSION.SDK_INT < 33) try { parentInfo.recycle() } catch (_: Exception) { }
+            }
+        }
+        if (!liveMode) {
+            // 预算耗尽未展开的队列残留：同样立即释放
+            for (idx in queue) {
+                if (idx != 0 && android.os.Build.VERSION.SDK_INT < 33) {
+                    try { infos[idx].recycle() } catch (_: Exception) { }
+                }
+            }
+        }
+        val built = SnapshotAssembler.assembleAll(recs)
+        val snapshot = built.firstOrNull() ?: return null
+        if (liveMode && map != null) {
+            for (i in 1 until recs.size) built[i]?.let { map[it] = infos[i] }
+        }
+        return snapshot
+    }
+
+    /** 单节点属性读取（一次 binder 往返；字段与脱敏口径与旧实现一致）。 */
+    private fun readRec(node: AccessibilityNodeInfo, depth: Int, parent: Int): SnapshotAssembler.Rec {
+        val isPassword = node.isPassword
+        val rawText = node.text?.toString()
+        val text = when {
+            isPassword -> null // 密码内容绝不复制
+            rawText != null && rawText.length > MAX_TEXT -> rawText.take(MAX_TEXT)
+            else -> rawText
+        }
+        val b = android.graphics.Rect().also { node.getBoundsInScreen(it) }
+        val rawDesc = node.contentDescription?.toString()
+        val desc = when {
+            isPassword -> null // 与文本同口径：密码节点不采集 desc
+            rawDesc != null && rawDesc.length > MAX_TEXT -> rawDesc.take(MAX_TEXT)
+            else -> rawDesc
+        }
+        return SnapshotAssembler.Rec(
+            depth = depth, parent = parent,
+            viewId = node.viewIdResourceName, className = node.className?.toString(),
+            text = text, desc = desc, clickable = node.isClickable, isPassword = isPassword,
+            left = b.left, top = b.top, right = b.right, bottom = b.bottom
+        )
     }
 
     class LiveSnapshot(
@@ -114,65 +199,6 @@ object NodeSnapshotReader {
         fun recycleAll() {
             if (android.os.Build.VERSION.SDK_INT >= 33) return
             for (n in live) try { n.recycle() } catch (_: Exception) { }
-        }
-    }
-
-    private fun readNode(node: AccessibilityNodeInfo?, depth: Int, budget: IntArray): SnapshotNode? =
-        readNode(node, depth, budget, null, null)
-
-    private fun readNode(
-        node: AccessibilityNodeInfo?,
-        depth: Int,
-        budget: IntArray,
-        live: MutableList<AccessibilityNodeInfo>?,
-        map: HashMap<SnapshotNode, AccessibilityNodeInfo>?
-    ): SnapshotNode? {
-        node ?: return null
-        if (depth > RuleLimits.MAX_NESTING_DEPTH) return null
-        if (budget[0] <= 0) return null
-        budget[0]--
-        try {
-            val isPassword = node.isPassword
-            val rawText = node.text?.toString()
-            val text = when {
-                isPassword -> null // 密码内容绝不复制
-                rawText != null && rawText.length > MAX_TEXT -> rawText.take(MAX_TEXT)
-                else -> rawText
-            }
-            val children = mutableListOf<SnapshotNode>()
-            if (budget[0] > 0 && depth < RuleLimits.MAX_NESTING_DEPTH) {
-                for (i in 0 until node.childCount) {
-                    val child = node.getChild(i) ?: continue
-                    val snapshotChild = readNode(child, depth + 1, budget, live, map)
-                    if (snapshotChild != null && live != null && map != null) {
-                        live.add(child); map[snapshotChild] = child // 活引用模式：由 LiveSnapshot.recycleAll 统一释放
-                    } else if (android.os.Build.VERSION.SDK_INT < 33) {
-                        try { child.recycle() } catch (_: Exception) { /* API 差异安全网 */ }
-                    }
-                    snapshotChild?.let(children::add)
-                    if (budget[0] <= 0) break
-                }
-            }
-            val b = android.graphics.Rect().also { node.getBoundsInScreen(it) }
-            val rawDesc = node.contentDescription?.toString()
-            val desc = when {
-                isPassword -> null // 与文本同口径：密码节点不采集 desc
-                rawDesc != null && rawDesc.length > MAX_TEXT -> rawDesc.take(MAX_TEXT)
-                else -> rawDesc
-            }
-            return SnapshotNode(
-                viewId = node.viewIdResourceName,
-                className = node.className?.toString(),
-                text = text,
-                clickable = node.isClickable,
-                children = children,
-                isPassword = isPassword,
-                boundsInScreen = SnapshotNode.Bounds(b.left, b.top, b.right, b.bottom),
-                desc = desc
-            )
-        } catch (_: Exception) {
-            // 节点在读取中途失效（窗口切换/进程死亡）：返回 null 让上层回退，绝不抛出
-            return null
         }
     }
 

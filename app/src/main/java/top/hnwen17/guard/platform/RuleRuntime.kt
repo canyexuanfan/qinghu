@@ -389,7 +389,13 @@ class RuleRuntime(
             val recentText = mergeAppText(event.session.packageName, extractSnapshotText(live.rootSnapshot))
             val windowSnapshot = WindowSnapshot(event.session.packageName, versionCode = 1, root = live.rootSnapshot, activityId = activityNameM, activityConfirmed = confirmedM, recentAppText = recentText)
             val candidates = idx.candidatesFor(event.session.packageName, versionCode = 1, activityId = activityNameM, activityConfirmed = confirmedM)
-            if (candidates.isEmpty()) { logAction("match skip: no candidates for ${event.session.packageName}"); return null }
+            if (candidates.isEmpty()) {
+                // 无候选（该应用/窗口没有适配规则）也留观察痕：用户诉求「有广告必须有痕迹」，
+                // 此前直接 return 导致零规则应用的开屏广告一片空白（腾讯视频互动开屏实测反馈）
+                observeIfSuspect(event.session, live.rootSnapshot, reason = "no_candidates")
+                logAction("match skip: no candidates for ${event.session.packageName}")
+                return null
+            }
             val matches = RuleMatcher.findMatches(candidates, windowSnapshot)
             if (matches.isEmpty()) {
                 // QH-P18 观察日志：疑似广告窗口但无规则命中 → 留痕（用户可见+可导出补规则）
