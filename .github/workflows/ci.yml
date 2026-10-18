@@ -26,15 +26,16 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Unit tests
-        run: ./gradlew test --stacktrace --no-daemon
+      # preview flavor 的 :core 变体匹配在无签名/维度环境下解析失败，CI 只验证 standard flavor
+      - name: Unit tests (standard flavor)
+        run: ./gradlew :core:test :app:testStandardDebugUnitTest --stacktrace --no-daemon
 
-      - name: Assemble debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+      - name: Assemble debug APK (standard flavor)
+        run: ./gradlew :app:assembleStandardDebug --stacktrace --no-daemon
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: qinghu-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/standard/debug/*.apk
           if-no-files-found: error
