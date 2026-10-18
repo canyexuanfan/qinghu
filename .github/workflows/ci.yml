@@ -28,7 +28,7 @@ jobs:
 
       # preview flavor 的 :core 变体匹配在无签名/维度环境下解析失败，CI 只验证 standard flavor
       - name: Unit tests (standard flavor)
-        run: ./gradlew :app:testStandardDebugUnitTest --stacktrace --no-daemon
+        run: ./gradlew :core:test :app:testStandardDebugUnitTest --stacktrace --no-daemon
 
       - name: Assemble debug APK (standard flavor)
         run: ./gradlew :app:assembleStandardDebug --stacktrace --no-daemon
