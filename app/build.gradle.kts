@@ -14,6 +14,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     flavorDimensions += "data"
+    // :core 为纯 JVM 模块、无 data 维度；声明缺维策略使变体匹配可解析
+    missingDimensionStrategy("data", "standard")
     productFlavors {
         create("standard") {
             dimension = "data"
