@@ -38,7 +38,7 @@
 
 - Android Studio（AGP 8.9.2 / Gradle 8.11.1 / JDK 17）或命令行 `gradle :app:assembleStandardRelease`
 - 签名：debug 自动用 debug key；release 需自建 `keystore-local/` 并配置 `signing.properties`
-- 规则包位于 `app/src/main/assets/rules/generic_zh.json`（schema 见 `docs/`），修改后重新构建即可
+- 规则包位于 `app/src/main/assets/rules/generic_zh.json`，修改后重新构建即可
 
 ## 隐私
 
@@ -49,10 +49,6 @@
 ## 许可证
 
 [GPL-3.0](LICENSE)。规则数据提炼自公开社区知识（[GKD 订阅](https://github.com/gkd-kit/gkd)、李跳跳存档规则等，已在规则 provenance 字段标注来源）；如权利人认为有误，请提 issue，我会移除对应内容。
-
-## 开发文档
-
-产品需求见 [PRD.md](PRD.md)，技术设计见 [docs/TECHNICAL_DESIGN.md](docs/TECHNICAL_DESIGN.md)，规则格式见 [docs/RULE_SCHEMA.md](docs/RULE_SCHEMA.md)，测试计划见 [docs/TEST_PLAN.md](docs/TEST_PLAN.md)。
 
 ---
 也参考了这些同类开源项目的设计思路：[GKD](https://github.com/gkd-kit/gkd)（GPL-3.0）、[Android-Touch-Helper](https://github.com/zfdang/Android-Touch-Helper)。
