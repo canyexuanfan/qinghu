@@ -12,10 +12,10 @@ android {
         versionCode = 51
         versionName = "0.5.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // :core 为纯 JVM 模块、无 data 维度；声明缺维策略使变体匹配可解析
+        missingDimensionStrategy("data", "standard")
     }
     flavorDimensions += "data"
-    // :core 为纯 JVM 模块、无 data 维度；声明缺维策略使变体匹配可解析
-    missingDimensionStrategy("data", "standard")
     productFlavors {
         create("standard") {
             dimension = "data"
